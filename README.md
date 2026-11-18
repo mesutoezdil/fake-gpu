@@ -94,6 +94,43 @@ and it also lands in the kernel log, which is off by default because kind
 nodes share the host's kernel and the lines end up in your own `dmesg`.
 [demo/faults](demo/faults/README.md) names the metric that carries each one.
 
+### Scripted scenarios
+
+A scenario file lists faults against a clock and what should be true after
+each one. `fakegpuctl run` plays it and exits non-zero when a check fails, so a
+CI job can assert that an alert rule or a remediation controller reacted.
+
+```yaml
+name: thermal runaway on card 0
+steps:
+  - at: 0s
+    gpu: 0
+    do: busy
+    args: {util: "100"}
+    expect: {utilization_pct: ">= 95", power_w: ">= 600"}
+  - at: 70s
+    gpu: 0
+    do: overheat
+    expect: {status: overheating, throttled: "true", clock_gfx_mhz: "< 1200"}
+```
+
+```text
+$ fakegpuctl run examples/scenarios/thermal-runaway.yaml
+scenario: thermal runaway on card 0 (4 steps)
+[   0.0s] gpu 0 busy -> healthy
+[   0.0s] gpu 0 ok: power_w >= 600, utilization_pct >= 95
+[  10.0s] gpu 0 ok: temperature_c >= 60
+[  70.0s] gpu 0 overheat -> overheating
+[  70.0s] gpu 0 ok: clock_gfx_mhz < 1200, status overheating, throttled true
+[  85.0s] gpu 0 recover -> healthy
+[  85.0s] gpu 0 ok: status healthy, throttled false, utilization_pct < 8
+scenario passed in 85.0s
+```
+
+`expect` reads any field the API returns for a card and waits up to `within`
+(30 seconds unless set) for it to hold. [examples/scenarios](examples/scenarios)
+has this one and an xGMI link flap.
+
 ## Telemetry
 
 Load is the only input. Power follows utilization, temperature drifts toward

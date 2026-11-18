@@ -16,6 +16,7 @@ import (
 
 const usage = `usage: fakegpuctl [-api URL] list
        fakegpuctl [-api URL] <action> -gpu N [key=value ...]
+       fakegpuctl [-api URL] run scenario.yaml
 
 actions: crash recover busy idle overheat ecc-error throttle retire-page xgmi-down
 options: busy util=95 mem=70, overheat temp=105, ecc-error count=2, retire-page count=2
@@ -40,6 +41,18 @@ func run(args []string, out, errOut io.Writer) int {
 	}
 	client := &http.Client{Timeout: 10 * time.Second}
 	cmd, rest := global.Arg(0), global.Args()[1:]
+
+	if cmd == "run" {
+		if len(rest) != 1 {
+			fmt.Fprintln(errOut, "fakegpuctl: run needs one scenario file")
+			return 2
+		}
+		if err := runScenario(client, *api, rest[0], out); err != nil {
+			fmt.Fprintln(errOut, "fakegpuctl:", err)
+			return 1
+		}
+		return 0
+	}
 
 	if cmd == "list" {
 		var body struct {

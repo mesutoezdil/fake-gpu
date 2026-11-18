@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -55,4 +56,75 @@ func TestCtlDrivesTheRealAPI(t *testing.T) {
 	call(2)
 	server.Close()
 	call(1, "list")
+}
+
+func TestScenarioRunsFaultsAndChecks(t *testing.T) {
+	data, err := os.ReadFile("../../profiles/mi300x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p kfd.Profile
+	if err := yaml.Unmarshal(data, &p); err != nil {
+		t.Fatal(err)
+	}
+	state := kfd.NewFleetState(&p, "mi300x")
+	sim := kfd.NewDynamicSimulator(state)
+	sim.Start(5)
+	defer sim.Stop()
+	server := httptest.NewServer(kfd.NewAPIServer(state, nil))
+	defer server.Close()
+
+	write := func(body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "scenario.yaml")
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	run := func(want int, body string) string {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		if code := run([]string{"-api", server.URL, "run", write(body)}, &out, &errOut); code != want {
+			t.Fatalf("exit %d, want %d:\n%s%s", code, want, out.String(), errOut.String())
+		}
+		return out.String() + errOut.String()
+	}
+
+	// Steps run in time order even when written out of order.
+	got := run(0, `
+name: load then throttle
+steps:
+  - {at: 300ms, gpu: 1, do: throttle, expect: {status: throttling, throttled: "true", power_w: "<= 380"}, within: 3s}
+  - {at: 0s, gpu: 1, do: busy, args: {util: "90"}, expect: {utilization_pct: ">= 87", power_w: "> 500"}, within: 3s}
+  - {at: 600ms, gpu: 1, do: recover, expect: {status: healthy, target_utilization_pct: "0"}, within: 3s}
+`)
+	if strings.Index(got, "busy -> healthy") > strings.Index(got, "throttle -> throttling") || !strings.Contains(got, "scenario passed") {
+		t.Fatalf("steps out of order or not passed:\n%s", got)
+	}
+
+	// An expectation that never holds fails the run and says what it saw.
+	if got := run(1, `
+steps:
+  - {at: 0s, gpu: 2, do: retire-page, expect: {retired_pages: ">= 5"}, within: 400ms}
+`); !strings.Contains(got, "retired_pages is 1, want >= 5") {
+		t.Fatalf("failure message: %s", got)
+	}
+	run(1, "steps:\n  - {at: 0s, gpu: 0, expect: {no_such_field: \"1\"}}\n")
+	run(1, "steps:\n  - {at: 0s, gpu: 0, expect: {status: \"> 3\"}, within: 200ms}\n")
+	run(1, "steps: []\n")
+	run(1, "steps:\n  - {at: 0s, gpu: 99, do: throttle}\n")
+
+	// The shipped examples must at least parse into steps.
+	examples, _ := filepath.Glob("../../examples/scenarios/*.yaml")
+	if len(examples) < 2 {
+		t.Fatal("example scenarios missing")
+	}
+	for _, file := range examples {
+		raw, _ := os.ReadFile(file)
+		var sc scenario
+		if err := yaml.Unmarshal(raw, &sc); err != nil || len(sc.Steps) == 0 || sc.Name == "" {
+			t.Fatalf("%s: %v %+v", file, err, sc)
+		}
+	}
 }

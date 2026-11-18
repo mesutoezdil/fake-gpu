@@ -1,0 +1,27 @@
+# A card is loaded to its limit, overheats, throttles itself and is recovered.
+# Run it against a live agent:  fakegpuctl run examples/scenarios/thermal-runaway.yaml
+name: thermal runaway on card 0
+steps:
+  - at: 0s
+    gpu: 0
+    do: busy
+    args: {util: "100"}
+    expect: {utilization_pct: ">= 95", power_w: ">= 600"}
+    within: 10s
+
+  - at: 10s
+    gpu: 0
+    expect: {temperature_c: ">= 60"}
+    within: 60s
+
+  - at: 70s
+    gpu: 0
+    do: overheat
+    expect: {status: overheating, throttled: "true", clock_gfx_mhz: "< 1200"}
+    within: 10s
+
+  - at: 85s
+    gpu: 0
+    do: recover
+    expect: {status: healthy, throttled: "false", utilization_pct: "< 8"}
+    within: 10s

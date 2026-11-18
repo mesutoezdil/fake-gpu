@@ -1,0 +1,24 @@
+# An xGMI link drops on one card, a second card retires memory pages meanwhile,
+# and both come back. Useful for checking that alerts fire once and clear.
+name: xGMI link flap with page retirement
+steps:
+  - at: 0s
+    gpu: 3
+    do: xgmi-down
+    expect: {status: xgmi_link_down}
+
+  - at: 5s
+    gpu: 2
+    do: retire-page
+    args: {count: "4"}
+    expect: {retired_pages: "4"}
+
+  - at: 20s
+    gpu: 3
+    do: recover
+    expect: {status: healthy}
+
+  - at: 25s
+    gpu: 2
+    do: recover
+    expect: {retired_pages: "0", status: healthy}
