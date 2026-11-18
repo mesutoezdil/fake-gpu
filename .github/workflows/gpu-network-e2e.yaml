@@ -46,7 +46,7 @@ jobs:
           wait: 120s
       - name: Install published GPU mock chart
         run: |
-          helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu --version 0.2.13 \
+          helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu --version 0.2.15 \
             --namespace amd-mock --create-namespace --wait --timeout 10m \
             --set monitoring.enabled=false --set metricsExporter.enabled=false
       - name: Boot ERNIC worker using Docker

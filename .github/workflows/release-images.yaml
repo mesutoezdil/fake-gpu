@@ -1,0 +1,35 @@
+# Builds every image and the chart for AMD64 and ARM64 from the pins in
+# scripts/release.env and publishes them to GHCR. Manual only.
+name: release-images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: false
+      - uses: azure/setup-helm@v4
+      - uses: docker/setup-qemu-action@v3
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Mock, DRA driver, kind node image and chart
+        run: scripts/build-images.sh --push
+      - name: Mock and metrics exporter runtime
+        run: scripts/build-telemetry-images.sh --push
+      - name: Optional CUSE driver image
+        run: scripts/build-driver-mock-images.sh --push
