@@ -9,7 +9,7 @@ metrics exporter then run against it unmodified, so you can test scheduling,
 monitoring and failure handling on a laptop or in CI. Nothing is computed:
 there is no HIP, no VRAM behind the numbers, no ioctl that does anything.
 
-![dashboard with two busy cards, one throttled and two faulted](docs/img/dashboard.png)
+![the fake-gpu console: one card under load, one throttling, one with retired pages, one with its xGMI link down](docs/img/console.png)
 
 ## One minute, no cluster
 
@@ -39,7 +39,7 @@ GPU  NAME                 STATUS          TEMP  POWER  UTIL  ECC  RETIRED
 
 That listing was taken 45 seconds after the commands. GPU 0 needs about that
 long to reach 84 C, because the lag is modelled; see [telemetry](#telemetry).
-The dashboard is on [localhost:8080](http://localhost:8080) and
+The console above is on [localhost:8080](http://localhost:8080) and
 `fgpu amd-smi monitor` prints the same state the way AMD's tool lays it out.
 The container is unprivileged and leaves the host alone. Other containers read
 the same cards by mounting the `state` volume at `/var/lib/fake-gpu`.

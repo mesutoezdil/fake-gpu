@@ -1,267 +1,242 @@
 package kfd
 
+// dashboardHTML is the single-page console served at "/". It polls the API,
+// keeps a short client-side history per card for the sparklines, and sends
+// fault actions back. No build step and no external assets.
 const dashboardHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fake GPU Dashboard</title>
+<title>fake-gpu console</title>
 <style>
   :root {
-    --bg: #0d1117; --card: #161b22; --border: #30363d;
-    --text: #e6edf3; --dim: #8b949e; --accent: #ed1c24;
-    --green: #3fb950; --yellow: #d29922; --red: #f85149; --blue: #58a6ff;
-    --tray-a: #1a2332; --tray-b: #1a1a2e;
+    --ink: #0c0d0b; --panel: #121410; --line: #262a22; --soft: #1a1d17;
+    --text: #e9ecdf; --dim: #8a917c; --lime: #c8f135; --amber: #ffb224;
+    --red: #ff5a47; --cyan: #5fd3c9;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-         background: var(--bg); color: var(--text); padding: 20px; }
-  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
-            border-bottom: 1px solid var(--border); padding-bottom: 16px; }
-  .header h1 { font-size: 22px; font-weight: 600; }
-  .header .badge { background: var(--accent); color: #fff; padding: 3px 10px;
-                   border-radius: 12px; font-size: 12px; font-weight: 600; }
-  .sys-info { display: flex; gap: 24px; color: var(--dim); font-size: 13px; margin-left: auto; }
-  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
-             padding: 12px 16px; background: var(--card); border: 1px solid var(--border);
-             border-radius: 8px; flex-wrap: wrap; }
-  .toolbar label { font-size: 12px; color: var(--dim); text-transform: uppercase;
-                   letter-spacing: 0.5px; }
-  .toolbar select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
-                    border-radius: 4px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
-  .toolbar select:hover { border-color: var(--accent); }
-  .toolbar .sep { width: 1px; height: 24px; background: var(--border); }
-  .tray { margin-bottom: 24px; }
-  .tray-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
-                 padding: 8px 12px; border-radius: 6px; }
-  .tray-header.tray-a { background: var(--tray-a); border-left: 3px solid var(--blue); }
-  .tray-header.tray-b { background: var(--tray-b); border-left: 3px solid #a371f7; }
-  .tray-label { font-size: 13px; font-weight: 600; }
-  .tray-detail { font-size: 12px; color: var(--dim); }
-  .tray-select { background: var(--bg); color: var(--text); border: 1px solid var(--border);
-                 border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;
-                 margin-left: auto; }
-  .tray-select:hover { border-color: var(--accent); }
-  .gpu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-  .gpu-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-              padding: 14px; transition: border-color 0.2s; }
-  .gpu-card:hover { border-color: var(--accent); }
-  .gpu-card.crashed { border-color: var(--red); background: #1a0a0a; }
-  .gpu-card.overheating { border-color: var(--yellow); }
-  .gpu-card.ecc_error, .gpu-card.throttling, .gpu-card.page_retired, .gpu-card.xgmi_link_down { border-color: var(--yellow); }
-  .gpu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .gpu-name { font-weight: 600; font-size: 14px; }
-  .gpu-index { color: var(--dim); font-size: 12px; }
-  .status { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .status.healthy { background: #0d2818; color: var(--green); }
-  .status.crashed { background: #2d0a0a; color: var(--red); }
-  .status.overheating { background: #2d1f0a; color: var(--yellow); }
-  .status.ecc_error, .status.throttling, .status.page_retired, .status.xgmi_link_down { background: #2d1f0a; color: var(--yellow); }
-  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-  .metric { background: var(--bg); border-radius: 6px; padding: 6px 8px; }
-  .metric-label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .metric-value { font-size: 16px; font-weight: 600; margin-top: 1px; }
-  .metric-value.warn { color: var(--yellow); }
-  .metric-value.crit { color: var(--red); }
-  .bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 3px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
-  .bar-fill.low { background: var(--green); }
-  .bar-fill.mid { background: var(--yellow); }
-  .bar-fill.high { background: var(--red); }
-  .gpu-footer { display: flex; gap: 5px; flex-wrap: wrap; }
-  .btn { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);
-         background: var(--card); color: var(--dim); font-size: 11px; cursor: pointer;
-         transition: all 0.15s; }
-  .btn:hover { border-color: var(--accent); color: var(--text); background: #1a1a2e; }
-  .btn.active-danger { border-color: var(--red); background: var(--red); color: #fff; }
-  .btn.active-warn { border-color: var(--yellow); background: var(--yellow); color: #000; }
-  .btn.active-ok { border-color: var(--green); background: var(--green); color: #000; }
-  .info-row { display: flex; gap: 10px; font-size: 11px; color: var(--dim); margin-bottom: 6px; }
-  .note { font-size: 11px; color: var(--dim); margin-top: 16px; padding: 10px 12px;
-          background: var(--card); border: 1px solid var(--border); border-radius: 6px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ink); color: var(--text); font: 13px/1.4 var(--mono);
+         padding: 28px 32px 40px; max-width: 1480px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 14px; }
+  .mark { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+  .mark b { color: var(--lime); font-weight: 700; }
+  .tag { color: var(--ink); background: var(--amber); padding: 1px 7px; font-size: 11px;
+         font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .versions { margin-left: auto; color: var(--dim); font-size: 12px; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); margin: 22px 0 26px;
+             border: 1px solid var(--line); background: var(--panel); }
+  .summary div { padding: 14px 18px; border-right: 1px solid var(--line); }
+  .summary div:last-child { border-right: 0; }
+  .summary span { display: block; color: var(--dim); font-size: 11px; letter-spacing: 1px;
+                  text-transform: uppercase; }
+  .summary strong { display: block; font-size: 24px; font-weight: 600; margin-top: 2px; }
+  .summary small { color: var(--dim); font-size: 12px; font-weight: 400; }
+  .controls { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; color: var(--dim); }
+  select { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+           font: inherit; padding: 5px 8px; cursor: pointer; }
+  select:hover, select:focus { border-color: var(--lime); outline: 0; }
+  .tray-head { display: flex; align-items: center; gap: 12px; padding: 8px 0;
+               border-bottom: 2px solid var(--text); margin-top: 22px; }
+  .tray-head h2 { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .tray-head span { color: var(--dim); }
+  .tray-head select { margin-left: auto; }
+  .card { display: grid; grid-template-columns: 34px minmax(190px, 1.3fr) 124px repeat(4, minmax(120px, 1fr));
+          gap: 0 18px; align-items: center; padding: 12px 0 10px; border-bottom: 1px solid var(--line); }
+  .card.off { opacity: .55; }
+  .slot { font-size: 22px; font-weight: 700; color: var(--dim); }
+  .who strong { display: block; font-weight: 600; }
+  .who small { color: var(--dim); font-size: 11px; }
+  .state { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .state::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px;
+                   background: currentColor; }
+  .state.healthy { color: var(--lime); }
+  .state.crashed { color: var(--red); }
+  .state.overheating, .state.ecc_error, .state.throttling, .state.page_retired,
+  .state.xgmi_link_down { color: var(--amber); }
+  .gauge label { display: flex; justify-content: space-between; color: var(--dim); font-size: 10px;
+                 letter-spacing: 1px; text-transform: uppercase; }
+  .gauge label b { color: var(--text); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .gauge label b.hot { color: var(--amber); }
+  .gauge label b.crit { color: var(--red); }
+  .track { height: 5px; background: var(--soft); margin-top: 4px; }
+  .track i { display: block; height: 100%; background: var(--lime); transition: width .6s; }
+  .track i.mid { background: var(--amber); }
+  .track i.high { background: var(--red); }
+  svg.spark { display: block; width: 100%; height: 18px; margin-top: 2px; }
+  svg.spark polyline { fill: none; stroke: var(--cyan); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .acts { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 9px;
+          align-items: center; color: var(--dim); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .acts em { font-style: normal; margin: 0 2px 0 8px; }
+  .acts em:first-child { margin-left: 0; }
+  button { font: 11px var(--mono); color: var(--dim); background: none; border: 1px solid var(--line);
+           padding: 2px 8px; cursor: pointer; }
+  button:hover { color: var(--text); border-color: var(--text); }
+  button.on { color: var(--ink); background: var(--amber); border-color: var(--amber); }
+  button.on.bad { background: var(--red); border-color: var(--red); }
+  button.fix:hover { color: var(--ink); background: var(--lime); border-color: var(--lime); }
+  footer { color: var(--dim); font-size: 11px; margin-top: 22px; max-width: 86ch; }
+  @media (max-width: 1100px) {
+    .card { grid-template-columns: 34px 1fr 124px; row-gap: 10px; }
+    .gauge { grid-column: span 3; }
+    .acts { grid-column: 1 / -1; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+  }
 </style>
 </head>
 <body>
-<div class="header">
-  <h1>Fake GPU Dashboard</h1>
-  <span class="badge">SIMULATED</span>
-  <div class="sys-info">
-    <span id="sys-driver"></span>
-    <span id="sys-rocm"></span>
-  </div>
+<header>
+  <div class="mark">fake<b>-</b>gpu</div>
+  <span class="tag">simulated</span>
+  <div class="versions" id="versions"></div>
+</header>
+
+<section class="summary">
+  <div><span>Cards</span><strong id="sum-cards">-</strong></div>
+  <div><span>Fleet draw</span><strong id="sum-power">-</strong></div>
+  <div><span>Hottest</span><strong id="sum-hot">-</strong></div>
+  <div><span>Not healthy</span><strong id="sum-faults">-</strong></div>
+</section>
+
+<div class="controls">
+  <span>fleet profile</span>
+  <select id="fleet" onchange="switchFleet(this.value)"><option value="">loading</option></select>
+  <span id="layout"></span>
 </div>
-<div class="toolbar">
-  <label>Whole Fleet</label>
-  <select id="fleet-select" onchange="switchFleetProfile(this.value)">
-    <option value="">Loading...</option>
-  </select>
-  <div class="sep"></div>
-  <span id="layout-info" style="font-size:12px;color:var(--dim)"></span>
-</div>
-<div id="rack"></div>
-<div class="note">
-  GPUs are grouped by <strong>server tray</strong>. All GPUs in a tray are always the
-  same model: you cannot mix GPU types within a single server. Change the tray's model with
-  the dropdown in each tray header. This reflects how real AMD Instinct servers are built.
-</div>
+
+<main id="rack"></main>
+
+<footer>
+  Cards in one tray are always the same model, as on a real Instinct baseboard; change a tray
+  with the selector in its header. Sparklines show the last two minutes of edge temperature.
+  Every button calls the same HTTP API that fakegpuctl uses.
+</footer>
 
 <script>
-const API = window.location.origin;
-let profiles = [];
-let trays = [];
+var API = window.location.origin;
+var profiles = [];
+var trail = {};          // card index -> recent temperatures
+var HISTORY_POINTS = 60;   // one sample every 2 s
 
-function barClass(pct) { return pct < 50 ? 'low' : pct < 80 ? 'mid' : 'high'; }
-function tempClass(c) { return c < 80 ? '' : c < 100 ? 'warn' : 'crit'; }
+function esc(v) {
+  return String(v).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+function level(pct) { return pct < 50 ? '' : pct < 80 ? 'mid' : 'high'; }
 
-function profileOptions(currentSlug) {
-  return profiles.map(p =>
-    '<option value="' + p.slug + '"' + (p.slug === currentSlug ? ' selected' : '') + '>'
-    + p.name + ' (' + p.memory_gb + ' GB, ' + p.tdp_w + 'W)</option>'
-  ).join('');
+function gauge(label, value, pct, cls) {
+  return '<div class="gauge"><label>' + label + '<b class="' + (cls || '') + '">' + value + '</b></label>' +
+    '<div class="track"><i class="' + level(pct) + '" style="width:' + Math.max(0, Math.min(100, pct)) + '%"></i></div></div>';
 }
 
-function renderGPU(gpu) {
-  const memPct = gpu.memory_total_mb > 0 ? Math.round(gpu.memory_used_mb / gpu.memory_total_mb * 100) : 0;
-  const memGB = (gpu.memory_used_mb / 1024).toFixed(1);
-  const totalGB = (gpu.memory_total_mb / 1024).toFixed(0);
-  return ` + "`" + `
-    <div class="gpu-card ${gpu.status}">
-      <div class="gpu-header">
-        <div>
-          <div class="gpu-name">${gpu.name}</div>
-          <div class="gpu-index">GPU ${gpu.index} &middot; ${gpu.pci_bdf} &middot; NUMA ${gpu.numa_node}</div>
-        </div>
-        <span class="status ${gpu.status}">${gpu.status}</span>
-      </div>
-      <div class="info-row">
-        <span>${gpu.architecture.toUpperCase()}</span>
-        <span>${gpu.partition || 'N/A'}</span>
-        <span>ECC: ${gpu.ecc_errors}</span>
-        <span>Retired: ${gpu.retired_pages}</span>
-      </div>
-      <div class="metrics">
-        <div class="metric">
-          <div class="metric-label">Temp</div>
-          <div class="metric-value ${tempClass(gpu.temperature_c)}">${gpu.temperature_c}&deg;C</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Power</div>
-          <div class="metric-value">${gpu.power_w}W / ${gpu.power_cap_w}W</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Utilization</div>
-          <div class="metric-value">${gpu.utilization_pct}%</div>
-          <div class="bar"><div class="bar-fill ${barClass(gpu.utilization_pct)}" style="width:${gpu.utilization_pct}%"></div></div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Memory</div>
-          <div class="metric-value">${memGB} / ${totalGB} GB</div>
-          <div class="bar"><div class="bar-fill ${barClass(memPct)}" style="width:${memPct}%"></div></div>
-        </div>
-      </div>
-      <div class="gpu-footer">
-        <button class="btn ${gpu.status==='crashed'?'active-danger':''}" onclick="action('crash',${gpu.index})">Crash</button>
-        <button class="btn ${gpu.status==='overheating'?'active-warn':''}" onclick="action('overheat',${gpu.index})">Overheat</button>
-        <button class="btn ${gpu.status==='ecc_error'?'active-warn':''}" onclick="action('ecc-error',${gpu.index})">ECC Error</button>
-        <button class="btn ${gpu.status==='throttling'?'active-warn':''}" onclick="action('throttle',${gpu.index})">Throttle</button>
-        <button class="btn ${gpu.status==='page_retired'?'active-warn':''}" onclick="action('retire-page',${gpu.index})">Retire Page</button>
-        <button class="btn ${gpu.status==='xgmi_link_down'?'active-warn':''}" onclick="action('xgmi-down',${gpu.index})">xGMI Down</button>
-        <button class="btn ${gpu.utilization_pct>50?'active-warn':''}" onclick="action('busy',${gpu.index})">Busy</button>
-        <button class="btn ${gpu.status==='healthy'&&gpu.utilization_pct===0?'active-ok':''}" onclick="action('idle',${gpu.index})">Idle</button>
-        <button class="btn ${gpu.status==='healthy'?'active-ok':''}" onclick="action('recover',${gpu.index})">Recover</button>
-      </div>
-    </div>
-  ` + "`" + `;
+function spark(points) {
+  if (points.length < 2) return '<svg class="spark"></svg>';
+  var lo = Math.min.apply(null, points), hi = Math.max.apply(null, points);
+  var span = Math.max(hi - lo, 4);
+  var step = 100 / (points.length - 1);   // the line always spans the full width
+  var coords = points.map(function (t, i) {
+    return (i * step).toFixed(1) + ',' + (16 - (t - lo) / span * 14).toFixed(1);
+  }).join(' ');
+  return '<svg class="spark" viewBox="0 0 100 18" preserveAspectRatio="none"><polyline points="' + coords + '"/></svg>';
 }
 
-function renderTray(trayIdx, trayGPUs, traySlug) {
-  const trayClass = trayIdx === 0 ? 'tray-a' : 'tray-b';
-  const trayLabel = 'Server Tray ' + String.fromCharCode(65 + trayIdx);
-  const gpuRange = trayGPUs[0].index + '-' + trayGPUs[trayGPUs.length - 1].index;
-  return ` + "`" + `
-    <div class="tray">
-      <div class="tray-header ${trayClass}">
-        <span class="tray-label">${trayLabel}</span>
-        <span class="tray-detail">GPUs ${gpuRange} &middot; ${trayGPUs.length}x ${trayGPUs[0].name}</span>
-        <select class="tray-select" onchange="switchTray(${trayGPUs[0].index}, this.value)"
-                title="Change all GPUs in this tray">
-          ${profileOptions(traySlug)}
-        </select>
-      </div>
-      <div class="gpu-grid">
-        ${trayGPUs.map(renderGPU).join('')}
-      </div>
-    </div>
-  ` + "`" + `;
+function act(name, label, index, on, cls) {
+  return '<button class="' + (on ? 'on ' : '') + (cls || '') + '" onclick="fire(\'' + name + '\',' + index + ')">' + label + '</button>';
 }
 
-async function loadProfiles() {
-  try {
-    const res = await fetch(API + '/api/profiles');
-    profiles = await res.json();
-    if (!profiles || profiles.length === 0) profiles = [];
-  } catch (e) { profiles = []; }
+function card(g) {
+  var seen = trail[g.index] || (trail[g.index] = []);
+  seen.push(g.temperature_c);
+  if (seen.length > HISTORY_POINTS) seen.shift();
+
+  var cap = g.power_cap_w || 1;
+  var memPct = g.memory_total_mb ? g.memory_used_mb / g.memory_total_mb * 100 : 0;
+  var tempCls = g.temperature_c >= 100 ? 'crit' : g.temperature_c >= 80 ? 'hot' : '';
+  var is = function (s) { return g.status === s; };
+
+  return '<div class="card' + (is('crashed') ? ' off' : '') + '">' +
+    '<div class="slot">' + g.index + '</div>' +
+    '<div class="who"><strong>' + esc(g.name) + '</strong><small>' + esc(g.pci_bdf) + ' &middot; numa ' + g.numa_node +
+      ' &middot; ' + esc(g.partition || 'n/a') + '</small></div>' +
+    '<div class="state ' + esc(g.status) + '">' + esc(g.status.replace(/_/g, ' ')) + '</div>' +
+    gauge('load', g.utilization_pct + ' %', g.utilization_pct) +
+    gauge('power', g.power_w + ' / ' + g.power_cap_w + ' W', g.power_w / cap * 100) +
+    '<div class="gauge"><label>edge<b class="' + tempCls + '">' + g.temperature_c + ' C</b></label>' + spark(seen) + '</div>' +
+    gauge('vram', (g.memory_used_mb / 1024).toFixed(1) + ' / ' + (g.memory_total_mb / 1024).toFixed(0) + ' GB', memPct) +
+    '<div class="acts"><em>load</em>' +
+      act('busy', 'busy', g.index, g.target_utilization_pct > 0) +
+      act('idle', 'idle', g.index, false) +
+      '<em>fault</em>' +
+      act('throttle', 'throttle', g.index, is('throttling')) +
+      act('overheat', 'overheat', g.index, is('overheating')) +
+      act('ecc-error', 'ecc ' + g.ecc_errors, g.index, is('ecc_error')) +
+      act('retire-page', 'retired ' + g.retired_pages, g.index, is('page_retired')) +
+      act('xgmi-down', 'xgmi', g.index, is('xgmi_link_down')) +
+      act('crash', 'crash', g.index, is('crashed'), 'bad') +
+      '<em></em>' + act('recover', 'recover', g.index, false, 'fix') +
+    '</div></div>';
+}
+
+function options(current) {
+  return profiles.map(function (p) {
+    return '<option value="' + esc(p.slug) + '"' + (p.slug === current ? ' selected' : '') + '>' +
+      esc(p.name) + ' / ' + p.memory_gb + ' GB / ' + p.tdp_w + ' W</option>';
+  }).join('');
+}
+
+function tray(t, gpus) {
+  return '<div class="tray-head"><h2>tray ' + String.fromCharCode(65 + t.index) + '</h2>' +
+    '<span>cards ' + gpus[0].index + ' to ' + gpus[gpus.length - 1].index + '</span>' +
+    '<select title="change every card in this tray" onchange="switchTray(' + gpus[0].index + ', this.value)">' +
+    options(t.profile_slug) + '</select></div>' + gpus.map(card).join('');
 }
 
 async function refresh() {
   try {
-    const [gpuRes, trayRes] = await Promise.all([
-      fetch(API + '/api/gpus'),
-      fetch(API + '/api/trays')
-    ]);
-    const data = await gpuRes.json();
-    trays = await trayRes.json();
+    var res = await Promise.all([fetch(API + '/api/gpus'), fetch(API + '/api/trays')]);
+    var data = await res[0].json();
+    var trays = await res[1].json();
+    var gpus = data.gpus;
 
-    document.getElementById('sys-driver').textContent = 'amdgpu ' + data.system.amdgpu_version;
-    document.getElementById('sys-rocm').textContent = 'ROCm ' + data.system.rocm_version;
+    document.getElementById('versions').textContent =
+      'amdgpu ' + data.system.amdgpu_version + '   rocm ' + data.system.rocm_version;
 
-    // Update fleet selector
-    const fleetSel = document.getElementById('fleet-select');
-    const allSameSlug = trays.length > 0 && trays.every(t => t.profile_slug === trays[0].profile_slug);
-    fleetSel.innerHTML = '<option value="">' + (allSameSlug ? '' : '(mixed fleet) ') + 'Select profile...</option>' + profileOptions(allSameSlug ? trays[0].profile_slug : '');
-    if (allSameSlug && trays.length > 0) fleetSel.value = trays[0].profile_slug;
+    var draw = 0, budget = 0, hot = gpus[0], faults = 0;
+    gpus.forEach(function (g) {
+      draw += g.power_w; budget += g.power_cap_w;
+      if (g.temperature_c > hot.temperature_c) hot = g;
+      if (g.status !== 'healthy') faults++;
+    });
+    document.getElementById('sum-cards').textContent = gpus.length;
+    document.getElementById('sum-power').innerHTML = draw + ' W <small>of ' + budget + ' W</small>';
+    document.getElementById('sum-hot').innerHTML = hot.temperature_c + ' C <small>card ' + hot.index + '</small>';
+    document.getElementById('sum-faults').textContent = faults;
 
-    // Layout info
-    const gpuName = data.gpus.length > 0 ? data.gpus[0].name : '';
-    const isOAM = gpuName.includes('MI300X') || gpuName.includes('MI325X') || gpuName.includes('MI350X') || gpuName.includes('MI355X');
-    const layoutEl = document.getElementById('layout-info');
-    if (isOAM) {
-      layoutEl.textContent = trays.length + ' OAM server (' + data.gpus.length + ' GPUs: UBB baseboard, cannot split)';
-    } else if (gpuName.includes('MI300A')) {
-      layoutEl.textContent = trays.length + ' APU server (' + data.gpus.length + ' GPUs)';
-    } else {
-      layoutEl.textContent = trays.length + ' server(s) (' + data.gpus.length + ' GPUs: PCIe, ' + (trays.length > 1 ? 'multi-server' : 'single server') + ')';
+    var same = trays.length > 0 && trays.every(function (t) { return t.profile_slug === trays[0].profile_slug; });
+    var fleet = document.getElementById('fleet');
+    if (document.activeElement !== fleet) {
+      fleet.innerHTML = '<option value="">' + (same ? 'select profile' : 'mixed fleet') + '</option>' + options(same ? trays[0].profile_slug : '');
     }
+    document.getElementById('layout').textContent = trays.length + (trays.length === 1 ? ' tray' : ' trays');
 
-    // Render trays
-    let html = '';
-    for (const tray of trays) {
-      const trayGPUs = data.gpus.filter(g => g.index >= tray.start_gpu && g.index <= tray.end_gpu);
-      html += renderTray(tray.index, trayGPUs, tray.profile_slug);
+    if (!document.querySelector('.tray-head select:focus')) {
+      document.getElementById('rack').innerHTML = trays.map(function (t) {
+        return tray(t, gpus.filter(function (g) { return g.index >= t.start_gpu && g.index <= t.end_gpu; }));
+      }).join('');
     }
-    document.getElementById('rack').innerHTML = html;
-  } catch (e) { console.error('refresh failed:', e); }
+    document.body.dataset.ready = '1';
+  } catch (e) { console.error('refresh failed', e); }
 }
 
-async function action(name, gpu) {
-  await fetch(API + '/api/actions/' + name + '?gpu=' + gpu, { method: 'POST' });
-  refresh();
-}
+async function post(path) { await fetch(API + path, { method: 'POST' }); refresh(); }
+function fire(name, index) { post('/api/actions/' + name + '?gpu=' + index); }
+function switchFleet(slug) { if (slug) { trail = {}; post('/api/profiles/switch?profile=' + slug); } }
+function switchTray(index, slug) { if (slug) { trail = {}; post('/api/profiles/switch-tray?gpu=' + index + '&profile=' + slug); } }
 
-async function switchFleetProfile(slug) {
-  if (!slug) return;
-  await fetch(API + '/api/profiles/switch?profile=' + slug, { method: 'POST' });
-  refresh();
-}
-
-async function switchTray(gpuIndex, slug) {
-  if (!slug) return;
-  await fetch(API + '/api/profiles/switch-tray?gpu=' + gpuIndex + '&profile=' + slug, { method: 'POST' });
-  refresh();
-}
-
-(async () => {
-  await loadProfiles();
+(async function () {
+  try { profiles = await (await fetch(API + '/api/profiles')).json() || []; } catch (e) { profiles = []; }
   refresh();
   setInterval(refresh, 2000);
 })();
