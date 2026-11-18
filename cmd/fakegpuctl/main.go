@@ -17,6 +17,7 @@ import (
 const usage = `usage: fakegpuctl [-api URL] list
        fakegpuctl [-api URL] <action> -gpu N [key=value ...]
        fakegpuctl [-api URL] run scenario.yaml
+       fakegpuctl [-api URL] exec -gpu N [util=90 mem=70] -- command [args ...]
 
 actions: crash recover busy idle overheat ecc-error throttle retire-page xgmi-down
 options: busy util=95 mem=70, overheat temp=105, ecc-error count=2, retire-page count=2
@@ -71,11 +72,30 @@ func run(args []string, out, errOut io.Writer) int {
 		return 0
 	}
 
+	// For exec, everything after "--" is the command. Cut it off first: the
+	// flag package would otherwise swallow the separator.
+	var command []string
+	if cmd == "exec" {
+		for i, arg := range rest {
+			if arg == "--" {
+				rest, command = rest[:i], rest[i+1:]
+				break
+			}
+		}
+	}
 	sub := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	sub.SetOutput(errOut)
 	index := sub.Int("gpu", -1, "GPU index")
 	if err := sub.Parse(rest); err != nil {
 		return 2
+	}
+	if cmd == "exec" {
+		opts := sub.Args()
+		if *index < 0 || len(command) == 0 {
+			fmt.Fprintln(errOut, "fakegpuctl: exec needs -gpu N and a command after --")
+			return 2
+		}
+		return runExec(client, *api, *index, opts, command, errOut)
 	}
 	query := url.Values{}
 	for _, kv := range sub.Args() {

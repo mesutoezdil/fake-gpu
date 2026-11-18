@@ -25,3 +25,4 @@ jobs:
       - run: tests/docker/run.sh
       - run: tests/hipshim/run.sh
       - run: tests/hipshim/live.sh
+      - run: tests/hipcpu/run.sh

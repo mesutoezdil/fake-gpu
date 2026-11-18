@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
 	"gopkg.in/yaml.v3"
@@ -126,5 +127,56 @@ steps:
 		if err := yaml.Unmarshal(raw, &sc); err != nil || len(sc.Steps) == 0 || sc.Name == "" {
 			t.Fatalf("%s: %v %+v", file, err, sc)
 		}
+	}
+}
+
+func TestExecHoldsTheCardBusyWhileTheCommandRuns(t *testing.T) {
+	data, err := os.ReadFile("../../profiles/mi300x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p kfd.Profile
+	if err := yaml.Unmarshal(data, &p); err != nil {
+		t.Fatal(err)
+	}
+	state := kfd.NewFleetState(&p, "mi300x")
+	server := httptest.NewServer(kfd.NewAPIServer(state, nil))
+	defer server.Close()
+
+	marker := filepath.Join(t.TempDir(), "started")
+	done := make(chan int)
+	go func() {
+		var out, errOut bytes.Buffer
+		done <- run([]string{"-api", server.URL, "exec", "-gpu", "3", "util=80", "--",
+			"sh", "-c", "touch " + marker + "; sleep 0.4; exit 3"}, &out, &errOut)
+	}()
+	for i := 0; ; i++ {
+		if _, err := os.Stat(marker); err == nil {
+			break
+		}
+		if i > 200 {
+			t.Fatal("command never started")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if g, _ := state.GetGPU(3); g.TargetUtilPct != 80 {
+		t.Fatalf("card not busy while the command runs: %+v", g)
+	}
+	if code := <-done; code != 3 {
+		t.Fatalf("exit code %d, want the command's 3", code)
+	}
+	if g, _ := state.GetGPU(3); g.TargetUtilPct != 0 {
+		t.Fatalf("card left busy after the command: %+v", g)
+	}
+
+	var out, errOut bytes.Buffer
+	if code := run([]string{"-api", server.URL, "exec", "-gpu", "3", "--", "/no/such/binary"}, &out, &errOut); code != 127 {
+		t.Fatalf("missing binary: exit %d", code)
+	}
+	if g, _ := state.GetGPU(3); g.TargetUtilPct != 0 {
+		t.Fatal("card left busy after a command that could not start")
+	}
+	if code := run([]string{"-api", server.URL, "exec", "-gpu", "3"}, &out, &errOut); code != 2 {
+		t.Fatalf("no command: exit %d", code)
 	}
 }

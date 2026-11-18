@@ -171,6 +171,19 @@ or is killed. The agent stages the library and header under
 It does not run kernels. A program that calls `hipLaunchKernel` or is linked
 against the real `libamdhip64` will not load against it.
 
+### Running real kernels
+
+Kernels can still run, on the CPU. [examples/hip-cpu](examples/hip-cpu) builds
+a HIP program against the HIP CPU Runtime and starts it with
+
+```bash
+fakegpuctl exec -gpu 0 util=90 -- saxpy 16777216 400
+```
+
+`exec` keeps the card busy while the command runs, returns its exit code and
+sets the card idle afterwards. It works for any command, so a CPU stand-in for
+a training job shows up as GPU load in whatever is watching.
+
 ## Profiles
 
 `--set gpu.profile=<name>` picks the card. Profiles are YAML files in

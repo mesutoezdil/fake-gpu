@@ -17,4 +17,4 @@ the test that fails if the surface breaks.
 | CLI | `amd-smi` and `rocm-smi` subset over the same state | Byte-exact output of the real tools, write commands | `cmd/amd-smi/main_test.go` |
 | Profiles | Seven Instinct models, plus capture from a real machine | Mixed models on one node | `TestCaptureRoundTripsRenderedProfile` |
 | HIP memory | `libfakehip.so`: device enumeration, `HIP_VISIBLE_DEVICES`, allocation against the card's VRAM limit, copies, per-process usage reported as used VRAM and released on exit or crash | Kernel launch, streams, events, managed memory, loading binaries built against `libamdhip64` | `tests/hipshim/run.sh`, `tests/hipshim/live.sh`, `TestHIPClientMemoryCountsAsVRAM` |
-| Compute | Nothing | HIP kernels, ROCm libraries, DMA, SR-IOV | |
+| Compute | Nothing in fake-gpu itself. `fakegpuctl exec` reports load while a command runs, and `examples/hip-cpu` runs a HIP kernel on the CPU through the HIP CPU Runtime | GPU execution of any kind, ROCm libraries, DMA, SR-IOV; the load figure is requested, not measured | `tests/hipcpu/run.sh`, `TestExecHoldsTheCardBusyWhileTheCommandRuns` |
