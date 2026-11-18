@@ -39,7 +39,7 @@ for arch in amd64 arm64; do
     [ "$arch" = amd64 ] || compiler=aarch64-linux-gnu-gcc
     "$RUNTIME" run --rm -v "$REPO_ROOT/pkg/mocksmi:/src:ro" -v "$context/mock/pkg/mocksmi:/out" \
         localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 \
-        -Wl,-soname,libamd_smi.so.27 -o /out/libamd_smi.so /src/mock_amdsmi.c /src/stubs.c
+        -Wl,-soname,libamd_smi.so.27 -Wl,--version-script=/src/version.map -o /out/libamd_smi.so /src/mock.c /src/unsupported.c
     mkdir -p "$context/mock/pkg/hipshim" && cp "$REPO_ROOT/pkg/hipshim/fakehip.h" "$context/mock/pkg/hipshim/"
     "$RUNTIME" run --rm -v "$REPO_ROOT/pkg/hipshim:/src:ro" -v "$context/mock/pkg/hipshim:/out" \
         localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 \

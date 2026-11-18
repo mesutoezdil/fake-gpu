@@ -120,7 +120,7 @@ func (p *plugin) CreateContainer(_ context.Context, pod *api.PodSandbox, ctr *ap
 
 	// Set environment for the mock library and ROCm.
 	adj.AddEnv("LD_LIBRARY_PATH", fmt.Sprintf("/usr/lib64:%s/driver/usr/lib64", p.overlayMountPath))
-	adj.AddEnv("MOCK_AMDSMI_CONFIG", p.overlayMountPath+"/config/config.yaml")
+	adj.AddEnv("MOCK_AMDSMI_STATE_DIR", p.overlayMountPath+"/smi")
 	adj.AddEnv("ROCR_VISIBLE_DEVICES", "all")
 	adj.AddEnv("FAKE_GPU", "1")
 

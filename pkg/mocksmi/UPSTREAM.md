@@ -12,6 +12,6 @@ python3 generate-stubs.py /tmp/amdsmi-preprocessed.h
 clang-format -i unsupported.c
 ```
 
-The mock implements the telemetry and identity calls needed by the pinned collector. Unsupported control, event, profiler and other device capabilities return `AMDSMI_STATUS_NOT_SUPPORTED` rather than succeeding without doing work. The older handwritten mock in the parent directory is not used by this exporter.
+The mock implements the telemetry and identity calls needed by the pinned collector. Unsupported control, event, profiler and other device capabilities return `AMDSMI_STATUS_NOT_SUPPORTED` rather than succeeding without doing work.
 
 AMD exporter v1.4.1 was tested during development, but its bundled GPU Agent does not read ECC counters. It cannot validate the dashboard ECC pathway and is not the supported telemetry image.

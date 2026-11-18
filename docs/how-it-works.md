@@ -88,8 +88,8 @@ profile, tray and virtual partition changes are blocked in this startup mode.
 | --- | --- |
 | `cmd/node-agent` | Profile loading, renderer, simulator and API startup |
 | `pkg/gpu/kfd` | Sysfs/devices/CDI, runtime state, dashboard and atomic SMI bridge |
-| `pkg/mocksmi/exporter` | Official-header AMD SMI replacement for the real collector |
-| `pkg/mocksmi` | Legacy SMI library for other consumers |
+| `pkg/mocksmi` | AMD SMI library built on AMD's own header, read by the collector and every other consumer |
+| `pkg/hipshim` | HIP device and memory calls on host memory |
 | `deployments/helm/fake-gpu` | Node agent, allocator selection and optional exporter |
 | `deployments/metrics-exporter` | Collector runtime, monitoring values and Grafana dashboard |
 | `scripts/setup-monitoring.sh` | Optional external Prometheus Operator monitoring installation |

@@ -116,7 +116,7 @@ activity %, used memory MiB, total memory MiB, ECC count, graphics MHz and
 memory MHz. The next lines contain model, canonical SMI UUID and PCI BDF.
 The snapshot is the input read by the mock AMD SMI library, not a fabricated
 Prometheus response. See [snapshot writer](../pkg/gpu/kfd/smi.go) and
-[AMD SMI implementation](../pkg/mocksmi/exporter/) for that boundary.
+[AMD SMI implementation](../pkg/mocksmi/) for that boundary.
 
 At the export endpoint find `amd_gpu_ecc_uncorrect_total` with `gpu_id="0"`.
 At Prometheus find the same GPU/value. The telemetry runner queries Grafana's

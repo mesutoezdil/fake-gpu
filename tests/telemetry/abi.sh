@@ -9,4 +9,4 @@ printf '72 230 750 50 300 196608 7 500 1300\nAMD Instinct MI300X\n00000000-0000-
 printf 'page_retired 1 3\n' >> "$FIXTURE/gpu2"
 printf 'xgmi_link_down 0 0\n' >> "$FIXTURE/gpu3"
 "${CONTAINER_RUNTIME:-podman}" run --rm --platform "${ABI_PLATFORM:-linux/amd64}" -v "$ROOT:/src:ro" -v "$FIXTURE:/state:ro" -e MOCK_AMDSMI_STATE_DIR=/state docker.io/library/gcc:14 \
- sh -c 'gcc -I/src/pkg/mocksmi/exporter -pthread /src/tests/telemetry/abi.c /src/pkg/mocksmi/exporter/mock.c /src/pkg/mocksmi/exporter/unsupported.c -o /tmp/abi && /tmp/abi'
+ sh -c 'gcc -I/src/pkg/mocksmi -pthread /src/tests/telemetry/abi.c /src/pkg/mocksmi/mock.c /src/pkg/mocksmi/unsupported.c -o /tmp/abi && /tmp/abi'

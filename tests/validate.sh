@@ -208,10 +208,10 @@ section "5. Mock Library (amdsmi)"
 MOCKSMI="$(cd "$(dirname "$0")/../pkg/mocksmi" && pwd)"
 [ -f "$MOCKSMI/libamd_smi.so" ] || make -C "$MOCKSMI" >/dev/null
 SYMBOL_COUNT=$(nm -D "$MOCKSMI/libamd_smi.so" 2>/dev/null | grep -c " T amdsmi_" || echo 0)
-if [ "$SYMBOL_COUNT" -ge 180 ]; then
+if [ "$SYMBOL_COUNT" -ge 170 ]; then
   pass "Mock library: $SYMBOL_COUNT amdsmi_ symbols"
 else
-  fail "Expected 180+ symbols, found $SYMBOL_COUNT"
+  fail "Expected 170+ symbols, found $SYMBOL_COUNT"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────

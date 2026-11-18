@@ -25,8 +25,8 @@ RUN mkdir -p /out && \
       -L/out -l:libdrm_amdgpu.so.1 -Wl,-rpath,/opt/fake-gpu/lib -o /out/driver-probe
 COPY pkg/mocksmi/ /smi/
 RUN cc -shared -fPIC -O2 -Wl,-soname,libamd_smi.so.27 \
-    -Wl,--version-script=/smi/exporter/version.map \
-    /smi/exporter/mock.c /smi/exporter/unsupported.c -o /out/libamd_smi.so
+    -Wl,--version-script=/smi/version.map \
+    /smi/mock.c /smi/unsupported.c -o /out/libamd_smi.so
 COPY pkg/hipshim/ /hip/
 RUN cc -O2 -Wall -Wextra -Werror -fPIC -shared -Wl,-soname,libfakehip.so /hip/fakehip.c -lpthread -o /out/libfakehip.so
 

@@ -87,7 +87,7 @@ Images support Linux AMD64 and ARM64. AMD's published collector binaries are x86
 
 The node agent writes atomic per-GPU snapshots beneath `/var/lib/fake-gpu/smi`. Profiles, runtime changes and fault injection update this same state. The AMD SMI library reads it when AMD's GPU Agent requests device telemetry. It does not construct Prometheus responses or substitute the GPU Agent RPC service.
 
-The replacement is compiled against the unmodified AMD SMI header in GPU Agent release-v1.5.2. Its backend uses official ABI 27 types and is separate from the older handwritten mock used elsewhere. Header provenance is recorded in `pkg/mocksmi/exporter/UPSTREAM.md`; unsupported capabilities return AMD's `AMDSMI_STATUS_NOT_SUPPORTED`.
+The replacement is compiled against the unmodified AMD SMI header in GPU Agent release-v1.5.2. Its backend uses official ABI 27 types, and the same library is installed for every consumer. Header provenance is recorded in `pkg/mocksmi/UPSTREAM.md`; unsupported capabilities return AMD's `AMDSMI_STATUS_NOT_SUPPORTED`.
 
 Temperature APIs return millidegrees Celsius; the exporter presents Celsius. Memory-total/usage APIs return bytes, while AMD VRAM-info/usage structures use MiB. Power information uses watts; power-cap information uses microwatts. The dashboard converts the exporter's MiB VRAM values to bytes for display.
 
