@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -198,6 +199,49 @@ func TestLiveTelemetryReachesSysfs(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "sys/class/drm/card40")); err == nil {
 		t.Fatal("telemetry created a card that was never rendered")
+	}
+}
+
+func TestHIPClientMemoryCountsAsVRAM(t *testing.T) {
+	p := profilesForTest(t)["mi300x"]
+	root := t.TempDir()
+	state := NewFleetState(p, "mi300x")
+	sim := NewDynamicSimulator(state)
+	sim.TrackHIP(root)
+	sim.tick()
+	before, _ := state.GetGPU(0)
+
+	if err := os.MkdirAll(filepath.Join(root, "hip"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A live client: its file is locked. A dead one: the file is left unlocked.
+	live, err := os.OpenFile(filepath.Join(root, "hip/host-100"), os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Flock(int(live.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	live.WriteString("0 68719476736\n2 1073741824\n")
+	dead := filepath.Join(root, "hip/host-200")
+	if err := os.WriteFile(dead, []byte("0 34359738368\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sim.tick()
+	g0, _ := state.GetGPU(0)
+	g2, _ := state.GetGPU(2)
+	if g0.MemoryUsedMB != before.MemoryUsedMB+65536 || g2.MemoryUsedMB != before.MemoryUsedMB+1024 {
+		t.Fatalf("VRAM in use: gpu0 %d MB, gpu2 %d MB, baseline %d MB", g0.MemoryUsedMB, g2.MemoryUsedMB, before.MemoryUsedMB)
+	}
+	if _, err := os.Stat(dead); err == nil {
+		t.Fatal("usage file of a dead client was kept")
+	}
+
+	live.Close() // the client exits: its lock goes away with it
+	sim.tick()
+	if g0, _ = state.GetGPU(0); g0.MemoryUsedMB != before.MemoryUsedMB {
+		t.Fatalf("VRAM not released: %d MB, baseline %d MB", g0.MemoryUsedMB, before.MemoryUsedMB)
 	}
 }
 

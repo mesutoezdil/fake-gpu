@@ -14,3 +14,4 @@ __pycache__/
 .idea/
 .venv/
 /pkg/mocksmi/libamd_smi.so
+/pkg/hipshim/libfakehip.so

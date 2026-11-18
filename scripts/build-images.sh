@@ -40,6 +40,10 @@ for arch in amd64 arm64; do
     "$RUNTIME" run --rm -v "$REPO_ROOT/pkg/mocksmi:/src:ro" -v "$context/mock/pkg/mocksmi:/out" \
         localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 \
         -Wl,-soname,libamd_smi.so.27 -o /out/libamd_smi.so /src/mock_amdsmi.c /src/stubs.c
+    mkdir -p "$context/mock/pkg/hipshim" && cp "$REPO_ROOT/pkg/hipshim/fakehip.h" "$context/mock/pkg/hipshim/"
+    "$RUNTIME" run --rm -v "$REPO_ROOT/pkg/hipshim:/src:ro" -v "$context/mock/pkg/hipshim:/out" \
+        localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 \
+        -Wl,-soname,libfakehip.so -o /out/libfakehip.so /src/fakehip.c -lpthread
     (cd "$BUILD_DIR/dra" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -mod=vendor \
         -ldflags "-s -w -X main.version=$DRA_REF" -o "$context/driver/gpu-kubeletplugin" ./cmd/gpu-kubeletplugin)
     (cd "$BUILD_DIR/dra" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -mod=vendor \

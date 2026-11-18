@@ -16,4 +16,5 @@ the test that fails if the surface breaks.
 | Kernel log | One line per fault transition, opt-in. ECC, xGMI, throttling and over-temperature use the amdgpu 7.0 driver's own message formats | Page retirement, device loss and recovery, which the driver has no single line for and which are tagged `fake-gpu` | `TestFaultTransitionsReachKernelLog` |
 | CLI | `amd-smi` and `rocm-smi` subset over the same state | Byte-exact output of the real tools, write commands | `cmd/amd-smi/main_test.go` |
 | Profiles | Seven Instinct models, plus capture from a real machine | Mixed models on one node | `TestCaptureRoundTripsRenderedProfile` |
-| Compute | Nothing | HIP, ROCm, VRAM allocation, DMA, SR-IOV | |
+| HIP memory | `libfakehip.so`: device enumeration, `HIP_VISIBLE_DEVICES`, allocation against the card's VRAM limit, copies, per-process usage reported as used VRAM and released on exit or crash | Kernel launch, streams, events, managed memory, loading binaries built against `libamdhip64` | `tests/hipshim/run.sh`, `tests/hipshim/live.sh`, `TestHIPClientMemoryCountsAsVRAM` |
+| Compute | Nothing | HIP kernels, ROCm libraries, DMA, SR-IOV | |

@@ -145,6 +145,32 @@ v1.5.2 has no metric for retired pages or xGMI link state. The bundled
 Prometheus takes those two from the agent, as `gpu_retired_pages` and
 `gpu_xgmi_link_up`.
 
+## HIP memory
+
+`libfakehip.so` implements the device and memory half of the HIP runtime:
+`hipGetDeviceCount`, `hipSetDevice`, `hipMalloc`, `hipFree`, `hipMemcpy`,
+`hipMemGetInfo` and their neighbours, with the real error codes. A program
+that only allocates and copies builds against `fakehip.h` and runs here:
+
+```c
+#include <fakehip.h>
+
+void *weights;
+if (hipMalloc(&weights, (size_t)64 << 30) == hipErrorOutOfMemory)
+    /* your out-of-memory path, testable without a GPU */;
+```
+
+Device memory is host memory mapped without reservation, so 64 GiB costs
+nothing until it is written. The limit is the card's VRAM from the profile, and
+`HIP_VISIBLE_DEVICES` narrows the cards as it does on real hardware. What a
+process holds is added to the VRAM the agent reports, so it shows in
+`amd-smi`, in sysfs and in Grafana, and it is released when the process exits
+or is killed. The agent stages the library and header under
+`/var/lib/fake-gpu/driver/usr/` for other containers to build against.
+
+It does not run kernels. A program that calls `hipLaunchKernel` or is linked
+against the real `libamdhip64` will not load against it.
+
 ## Profiles
 
 `--set gpu.profile=<name>` picks the card. Profiles are YAML files in

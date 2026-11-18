@@ -87,6 +87,18 @@ func main() {
 		log.Printf("warning: mock library not found at %s (non-fatal)", libSrc)
 	}
 
+	// The HIP shim and its header are staged next to it for workload containers.
+	for src, dst := range map[string]string{
+		"/usr/lib64/libfakehip.so": "driver/usr/lib64/libfakehip.so",
+		"/usr/include/fakehip.h":   "driver/usr/include/fakehip.h",
+	} {
+		if data, err := os.ReadFile(src); err == nil {
+			target := filepath.Join(*rootDir, dst)
+			os.MkdirAll(filepath.Dir(target), 0o755)
+			os.WriteFile(target, data, 0o755)
+		}
+	}
+
 	if provider != nil {
 		src := "/opt/fake-gpu/lib/libdrm_amdgpu.so.1"
 		dst := filepath.Join(*rootDir, "driver/usr/lib64/libdrm_amdgpu.so.1")
@@ -175,6 +187,12 @@ func main() {
 			log.Printf("warning: sysfs telemetry sync: %v", err)
 		}
 	})
+	// HIP clients publish their allocations here; any user may be the client.
+	hipDir := filepath.Join(*rootDir, "hip")
+	if err := os.MkdirAll(hipDir, 0o1777); err == nil {
+		os.Chmod(hipDir, 0o1777)
+	}
+	sim.TrackHIP(*rootDir)
 	sim.Start(1000)
 	defer sim.Stop()
 

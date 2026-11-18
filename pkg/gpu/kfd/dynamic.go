@@ -16,6 +16,15 @@ type DynamicSimulator struct {
 	state   *FleetState
 	rng     *rand.Rand
 	onTick  func(*GPUState)
+
+	hipRoot string      // state directory watched for libfakehip clients
+	hipBase map[int]int // VRAM in use before a client appeared, by GPU index
+}
+
+// TrackHIP makes device memory held through libfakehip count as used VRAM.
+func (d *DynamicSimulator) TrackHIP(root string) {
+	d.hipRoot = root
+	d.hipBase = map[int]int{}
 }
 
 func NewDynamicSimulator(state *FleetState, callbacks ...func(*GPUState)) *DynamicSimulator {
@@ -77,11 +86,30 @@ func (d *DynamicSimulator) tick() {
 		}
 	}()
 
+	var hip map[int]uint64
+	if d.hipRoot != "" {
+		hip = ReadHIPUsage(d.hipRoot)
+	}
+
 	for i := range d.state.GPUs {
 		gpu := &d.state.GPUs[i]
 
 		if gpu.Status == "crashed" {
 			continue
+		}
+
+		// Memory a HIP client holds sits on top of what was in use before it
+		// arrived, and goes away with the client.
+		base, tracked := d.hipBase[gpu.Index]
+		if held := int(hip[gpu.Index] >> 20); held > 0 {
+			if !tracked {
+				base = gpu.MemoryUsedMB
+				d.hipBase[gpu.Index] = base
+			}
+			gpu.MemoryUsedMB = min(base+held, gpu.MemoryTotalMB)
+		} else if tracked {
+			gpu.MemoryUsedMB = base
+			delete(d.hipBase, gpu.Index)
 		}
 
 		// Utilization is the workload input. The busy action sets a target

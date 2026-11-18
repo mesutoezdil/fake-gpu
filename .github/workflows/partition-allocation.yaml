@@ -45,6 +45,7 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/amd-smi ./cmd/amd-smi
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/fakegpuctl ./cmd/fakegpuctl
           make -C pkg/mocksmi
+          make -C pkg/hipshim
           docker build -f Dockerfile.prebuilt -t fake-gpu:partition-test .
           kind load docker-image fake-gpu:partition-test --name amd-partitions
           helm install fake-gpu deployments/helm/fake-gpu \
