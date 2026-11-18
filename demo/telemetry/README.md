@@ -15,7 +15,13 @@ python3 demo/run.py telemetry
 Show temperature, power, activity, VRAM, clocks and ECC. The runner queries
 AMD metrics through Grafana's Prometheus datasource. Its output includes
 metric labels; find `pod`, `namespace` and `container` for allocated GPUs.
-Then inject a fault from the [fault demo](../faults/README.md).
+Then inject a fault from the [fault demo](../faults/README.md), or play a
+card through load, overheating and recovery and watch the panels follow:
+
+```bash
+kubectl -n amd-mock exec ds/fake-gpu -c node-agent -- \
+    fakegpuctl run /usr/share/fake-gpu/scenarios/thermal-runaway.yaml
+```
 
 The stack uses real Prometheus and Grafana, and unmodified AMD GPU Agent /
 exporter binaries. The mock is at AMD SMI's device API layer. AMD's x86
