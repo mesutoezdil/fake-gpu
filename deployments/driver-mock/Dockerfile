@@ -6,7 +6,9 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 RUN CGO_ENABLED=0 go build -o /out/node-agent ./cmd/node-agent && \
-    CGO_ENABLED=0 go build -o /out/nri-plugin ./cmd/nri-plugin
+    CGO_ENABLED=0 go build -o /out/nri-plugin ./cmd/nri-plugin && \
+    CGO_ENABLED=0 go build -o /out/amd-smi ./cmd/amd-smi && \
+    CGO_ENABLED=0 go build -o /out/fakegpuctl ./cmd/fakegpuctl
 
 FROM docker.io/library/debian:bookworm-slim AS native-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,6 +27,8 @@ COPY pkg/mocksmi/ /smi/
 RUN cc -shared -fPIC -O2 -Wl,-soname,libamd_smi.so.27 \
     -Wl,--version-script=/smi/exporter/version.map \
     /smi/exporter/mock.c /smi/exporter/unsupported.c -o /out/libamd_smi.so
+COPY pkg/hipshim/ /hip/
+RUN cc -O2 -Wall -Wextra -Werror -fPIC -shared -Wl,-soname,libfakehip.so /hip/fakehip.c -lpthread -o /out/libfakehip.so
 
 FROM docker.io/library/debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends tini libfuse3-3 wget ca-certificates \
@@ -33,7 +37,9 @@ COPY --from=go-builder /out/ /usr/local/bin/
 COPY --from=native-builder /out/mock-device /out/driver-probe /usr/local/bin/
 COPY --from=native-builder /out/libdrm_amdgpu.so.1 /opt/fake-gpu/lib/
 COPY --from=native-builder /out/libamd_smi.so /usr/lib64/libamd_smi.so
-RUN ln -s libamd_smi.so /usr/lib64/libamd_smi.so.27
+RUN ln -s libamd_smi.so /usr/lib64/libamd_smi.so.27 && ln -s amd-smi /usr/local/bin/rocm-smi
+COPY --from=native-builder /out/libfakehip.so /usr/lib64/libfakehip.so
+COPY pkg/hipshim/fakehip.h /usr/include/fakehip.h
 COPY profiles/ /etc/fake-gpu/profiles/
 ENTRYPOINT ["tini", "--"]
 CMD ["node-agent"]

@@ -21,7 +21,7 @@ def read(path):
             time.sleep(1)
 
 page = read('/')
-assert 'Fake GPU' in page and '</html>' in page, 'Dashboard HTML missing'
+assert '<title>fake-gpu console</title>' in page and '</html>' in page, 'Dashboard HTML missing'
 print('PASS: dashboard HTML reachable from host without port-forward', flush=True)
 fleet = json.loads(read('/api/gpus'))['gpus']
 assert len(fleet) == expected and len({g['uuid'] for g in fleet}) == expected

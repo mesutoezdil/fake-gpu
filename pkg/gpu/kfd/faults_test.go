@@ -48,6 +48,24 @@ func faultFixture(t *testing.T) (*APIServer, *FleetState, func(string) string) {
 	return NewAPIServer(state, r), state, read
 }
 
+// tests/dashboard-e2e.py looks for the same title on a live cluster; keeping
+// the check here catches a renamed page before it reaches CI.
+func TestConsolePageIsServed(t *testing.T) {
+	api := NewAPIServer(NewFleetState(profilesForTest(t)["mi300x"], "mi300x"), nil)
+	rec := httptest.NewRecorder()
+	api.ServeHTTP(rec, httptest.NewRequest("GET", "/", nil))
+	page := rec.Body.String()
+	for _, want := range []string{"<title>fake-gpu console</title>", "/api/gpus", "/api/actions/", "</html>"} {
+		if rec.Code != 200 || !strings.Contains(page, want) {
+			t.Fatalf("console page (HTTP %d) lacks %q", rec.Code, want)
+		}
+	}
+	data, err := os.ReadFile("../../../tests/dashboard-e2e.py")
+	if err != nil || !strings.Contains(string(data), "<title>fake-gpu console</title>") {
+		t.Fatalf("tests/dashboard-e2e.py no longer checks the served title: %v", err)
+	}
+}
+
 func TestRetirePageReachesSysfs(t *testing.T) {
 	api, _, read := faultFixture(t)
 	const badPages = "sys/class/drm/card0/device/ras/gpu_vram_bad_pages"
