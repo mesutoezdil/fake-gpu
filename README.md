@@ -210,4 +210,6 @@ runtime. Both take `--push`.
 
 ## License
 
-Apache License 2.0
+GNU Affero General Public License v3.0, see [LICENSE](LICENSE). Parts of the
+code were first released by third parties under the Apache License 2.0 and stay
+available under it; [NOTICE](NOTICE) has the details.
