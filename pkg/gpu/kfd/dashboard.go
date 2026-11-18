@@ -21,7 +21,9 @@ const dashboardHTML = `<!DOCTYPE html>
          padding: 28px 32px 40px; max-width: 1480px; margin: 0 auto; }
   header { display: flex; align-items: baseline; gap: 14px; }
   .mark { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
-  .mark b { color: var(--lime); font-weight: 700; }
+  .mark b { font-weight: 700; }
+  .mark .l { color: var(--lime); } .mark .a { color: var(--amber); }
+  .mark .c { color: var(--cyan); } .mark .r { color: var(--red); }
   .tag { color: var(--ink); background: var(--amber); padding: 1px 7px; font-size: 11px;
          font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
   .versions { margin-left: auto; color: var(--dim); font-size: 12px; }
@@ -87,7 +89,7 @@ const dashboardHTML = `<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <div class="mark">fake<b>-</b>gpu</div>
+  <div class="mark" title="fake-gpu"><b class="l">F</b><b class="a">@</b>k<b class="c">&pound;</b> <b class="a">@</b><b class="r">&#8357;</b><b class="l">&#272;</b></div>
   <span class="tag">simulated</span>
   <div class="versions" id="versions"></div>
 </header>

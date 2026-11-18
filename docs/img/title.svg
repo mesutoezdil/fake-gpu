@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 170" role="img" aria-label="F@k£ @₥Đ">
+  <rect width="760" height="170" rx="14" fill="#0c0d0b"/>
+  <rect x="1" y="1" width="758" height="168" rx="13" fill="none" stroke="#262a22" stroke-width="2"/>
+  <text x="380" y="112" text-anchor="middle" font-size="92" font-weight="700" letter-spacing="6"
+        font-family="'JetBrains Mono','SF Mono','DejaVu Sans Mono',Menlo,Consolas,monospace">
+    <tspan fill="#c8f135">F</tspan><tspan fill="#ffb224">@</tspan><tspan fill="#e9ecdf">k</tspan><tspan fill="#5fd3c9">£</tspan><tspan fill="#0c0d0b">_</tspan><tspan fill="#ffb224">@</tspan><tspan fill="#ff5a47">₥</tspan><tspan fill="#c8f135">Đ</tspan>
+  </text>
+  <text x="380" y="146" text-anchor="middle" font-size="15" letter-spacing="5" fill="#8a917c"
+        font-family="'JetBrains Mono','SF Mono','DejaVu Sans Mono',Menlo,Consolas,monospace">AMD INSTINCT, WITHOUT THE HARDWARE</text>
+</svg>

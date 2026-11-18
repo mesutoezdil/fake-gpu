@@ -1,6 +1,8 @@
-# fake-gpu
+<p align="center">
+  <img src="docs/img/title.svg" alt="F@k£ @₥Đ" width="640">
+</p>
 
-Eight AMD Instinct MI300X cards on a machine that has no GPU at all.
+fake-gpu puts eight AMD Instinct MI300X cards on a machine that has no GPU at all.
 
 fake-gpu writes the files, device nodes and libraries that AMD's software
 stack looks for: the KFD topology, the `amdgpu` sysfs attributes, `/dev/kfd`,
@@ -9,7 +11,7 @@ metrics exporter then run against it unmodified, so you can test scheduling,
 monitoring and failure handling on a laptop or in CI. Nothing is computed:
 there is no HIP, no VRAM behind the numbers, no ioctl that does anything.
 
-![the fake-gpu console: one card under load, one throttling, one with retired pages, one with its xGMI link down](docs/img/console.png)
+![the fake-gpu console: two cards under load, one throttling, one with retired pages, one with its xGMI link down](docs/img/console.png)
 
 ## One minute, no cluster
 
