@@ -47,12 +47,12 @@ echo "    commit $(git -C "$WORK/dra" rev-parse HEAD)"
 
 echo "==> Building probe (GOPATH mode)"
 GP="$WORK/gopath/src"
-mkdir -p "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg" "$GP/github.com/golang" "$GP/gopkg.in" "$GP/amdgpumock" "$GP/probe"
+mkdir -p "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg" "$GP/github.com/golang" "$GP/gopkg.in" "$GP/fakegpu" "$GP/probe"
 cp -r "$WORK/dra/pkg/amdgpu" "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg/"
 [ -d "$WORK/dra/pkg/consts" ] && cp -r "$WORK/dra/pkg/consts" "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg/"
 cp -r "$WORK/dra/vendor/github.com/golang/glog" "$GP/github.com/golang/"
 cp -r "$WORK/dra/vendor/gopkg.in/yaml.v3" "$GP/gopkg.in/"
-cp -r "$REPO_ROOT/pkg/gpu/kfd" "$GP/amdgpumock/"
+cp -r "$REPO_ROOT/pkg/gpu/kfd" "$GP/fakegpu/"
 cp "$REPO_ROOT/tests/dra/probe/main.go" "$GP/probe/"
 find "$GP" -name '*_test.go' -delete
 (cd "$GP/probe" && GO111MODULE=off GOPATH="$WORK/gopath" GOFLAGS='' GOTOOLCHAIN=local \

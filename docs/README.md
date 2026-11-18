@@ -4,9 +4,9 @@ A searchable Material for MkDocs site now brings these guides and demo READMEs
 together. See [building and publishing the site](site/maintaining.md) for local
 preview and GitHub Pages setup.
 
-The current published setup uses chart **0.2.15**, mock image **v0.2.9**,
-node image **0.2.2 / Kubernetes v1.37.0**, AMD DRA **v1.0.0-mock.3** and
-exporter **v1.5.2-mock.2**. These components have independent versions.
+The current published setup uses chart **0.1.0**, mock image **v0.1.0**,
+node image **0.1.0 / Kubernetes v1.37.0**, AMD DRA **v1.0.0-fake.1** and
+exporter **v1.5.2-fake.1**. These components have independent versions.
 The root README contains the short installation path; these guides explain
 behavior, validation and limits.
 

@@ -2,7 +2,7 @@ name: driver-backend
 on:
   workflow_dispatch:
   push:
-    branches: [main, feat/cuse-libdrm-consumers]
+    branches: [main]
     paths: ['pkg/mockdriver/**', 'pkg/gpu/kfd/**', 'cmd/node-agent/**', 'pkg/mocksmi/**', 'deployments/driver-mock/**', 'deployments/helm/**', 'tests/driver-mock/**', '.github/workflows/driver-backend.yaml']
   pull_request:
     paths: ['pkg/mockdriver/**', 'pkg/gpu/kfd/**', 'cmd/node-agent/**', 'deployments/driver-mock/**', 'deployments/helm/**', 'tests/driver-mock/**', '.github/workflows/driver-backend.yaml']
@@ -79,7 +79,7 @@ jobs:
         with:
           version: v0.33.0
           kubectl_version: v1.37.0
-          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2
+          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           cluster_name: amd-profile-test
           wait: 120s
       - name: Registry credentials for the node
@@ -136,7 +136,7 @@ jobs:
         with:
           version: v0.33.0
           kubectl_version: v1.37.0
-          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2
+          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           cluster_name: amd-driver-test
           config: deployments/kind-node/kind-config.yaml
           wait: 120s

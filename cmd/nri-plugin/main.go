@@ -122,7 +122,7 @@ func (p *plugin) CreateContainer(_ context.Context, pod *api.PodSandbox, ctr *ap
 	adj.AddEnv("LD_LIBRARY_PATH", fmt.Sprintf("/usr/lib64:%s/driver/usr/lib64", p.overlayMountPath))
 	adj.AddEnv("MOCK_AMDSMI_CONFIG", p.overlayMountPath+"/config/config.yaml")
 	adj.AddEnv("ROCR_VISIBLE_DEVICES", "all")
-	adj.AddEnv("AMD_GPU_MOCK", "1")
+	adj.AddEnv("FAKE_GPU", "1")
 
 	// Inject device nodes if the annotation requests them.
 	if hasDeviceAnnotation {

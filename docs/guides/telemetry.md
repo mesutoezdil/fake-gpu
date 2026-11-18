@@ -14,7 +14,7 @@ flowchart LR
 
 This follows the same principle as [NVIDIA Moka](https://github.com/NVIDIA/k8s-test-infra): simulate the vendor device interface and keep its consumers real. NVIDIA DCGM Exporter obtains telemetry through DCGM; AMD's exporter talks to GPU Agent, which invokes AMD SMI. These are different implementations, rather than interchangeable libraries.
 
-## Default dashboards (chart 0.2.15)
+## Default dashboards (chart 0.1.0)
 
 The default chart installs the real AMD exporter, Prometheus and Grafana.
 The shared kind configuration maps the mock dashboard to localhost:8080 and
@@ -41,7 +41,7 @@ cannot change on a Helm upgrade.
 
 ## Agent restarts and upgrades
 
-Chart `0.2.15` / mock image `v0.2.9` preserves the mounted `sys` and `smi`
+Chart `0.1.0` / mock image `v0.1.0` preserves the mounted `sys` and `smi`
 directories across graceful agent restarts and reconciles stale GPU inventory
 in place. This prevents the exporter from retaining mounts to deleted state.
 If upgrading from an older affected agent, refresh the exporter's mounts once
@@ -76,10 +76,10 @@ Published inputs:
 
 | Component | Version |
 | --- | --- |
-| Mock node agent | `ghcr.io/mesutoezdil/fake-gpu:v0.2.9` |
-| AMD collector with mock SMI backend | `ghcr.io/mesutoezdil/amd-device-metrics-exporter:v1.5.2-mock.2` |
-| Mock Helm chart | `0.2.15` |
-| Existing Kubernetes node image | `ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2` |
+| Mock node agent | `ghcr.io/mesutoezdil/fake-gpu:v0.1.0` |
+| AMD collector with mock SMI backend | `ghcr.io/mesutoezdil/amd-device-metrics-exporter:v1.5.2-fake.1` |
+| Mock Helm chart | `0.1.0` |
+| Existing Kubernetes node image | `ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0` |
 
 Images support Linux AMD64 and ARM64. AMD's published collector binaries are x86-64: the ARM64 runtime explicitly executes them using QEMU. The GPU Agent and exporter binaries are unchanged; ARM64 collector execution is emulated, while the mock node agent, Kubernetes, Prometheus and Grafana run natively. This costs more CPU than a native collector.
 

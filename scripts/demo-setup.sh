@@ -16,7 +16,7 @@ set -euo pipefail
 CLUSTER_NAME="${CLUSTER_NAME:-amd-mock}"
 GPU_PROFILE="${GPU_PROFILE:-mi300x}"
 CHART="oci://ghcr.io/mesutoezdil/fake-gpu"
-CHART_VERSION="0.2.12"
+CHART_VERSION="0.1.0"
 SKIP_CLUSTER=false
 TEARDOWN=false
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,7 +67,7 @@ if ! $SKIP_CLUSTER; then
   kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
 
   kind create cluster --name "$CLUSTER_NAME" \
-    --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+    --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
     --config "$SCRIPT_DIR/deployments/kind-node/kind-config.yaml"
   echo ""
 fi

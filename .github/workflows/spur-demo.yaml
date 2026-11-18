@@ -22,7 +22,7 @@ jobs:
           version: v0.33.0
           kubectl_version: v1.37.0
           cluster_name: amd-spur
-          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2
+          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           config: demo/spur/kind.yaml
           wait: 120s
       - name: Registry credentials for the node

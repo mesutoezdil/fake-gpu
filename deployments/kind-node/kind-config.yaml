@@ -4,7 +4,7 @@
 # Helm controls whether the dashboard workloads/Services are enabled.
 # Use with the custom node image:
 #   kind create cluster --name amd-mock \
-#     --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+#     --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
 #     --config deployments/kind-node/kind-config.yaml
 
 kind: Cluster
@@ -16,7 +16,7 @@ nodes:
         hostPort: 8080
         listenAddress: "127.0.0.1"
         protocol: TCP
-      # Grafana is installed by default by chart 0.2.6+.
+      # Grafana is installed by default.
       - containerPort: 30300
         hostPort: 3000
         listenAddress: "127.0.0.1"

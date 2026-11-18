@@ -2,8 +2,7 @@
 
 The default mock provides discovery, allocation and telemetry surfaces. The
 optional CUSE/library backend additionally supports consumers that open DRM
-character devices and call a small subset of `libdrm_amdgpu`. HAMi motivated this
-interface extension; neither HAMi nor RocJITsu is required to use it.
+character devices and call a small subset of `libdrm_amdgpu`, as HAMi does.
 
 ```text
 [1] Existing profile YAML -> original Go renderer / live state
@@ -24,7 +23,6 @@ interface extension; neither HAMi nor RocJITsu is required to use it.
 
 This is a library API simulator, not an implementation of the real AMD kernel
 ioctl protocol. Applications issuing raw AMDGPU/KFD ioctls are not covered.
-RocJITsu remains a separate experimental computation extension.
 
 ## Host and installation
 
@@ -45,16 +43,16 @@ runtime's Linux kernel, create a dedicated cluster using the normal node image:
 ```bash
 # For Podman: export KIND_EXPERIMENTAL_PROVIDER=podman
 kind create cluster --name amd-mock \
-  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
   --config deployments/kind-node/kind-config.yaml
 
 helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
-  --version 0.2.15 -n amd-mock --create-namespace \
+  --version 0.1.0 -n amd-mock --create-namespace \
   --set driverMock.enabled=true \
   --set image.repository=ghcr.io/mesutoezdil/fake-gpu-driver \
-  --set image.tag=v0.1.1 --wait --timeout 5m
+  --set image.tag=v0.1.0 --wait --timeout 5m
 
-DRIVER_IMAGE=ghcr.io/mesutoezdil/fake-gpu-driver:v0.1.1 \
+DRIVER_IMAGE=ghcr.io/mesutoezdil/fake-gpu-driver:v0.1.0 \
   python3 -u tests/driver-mock/allocated.py
 ```
 

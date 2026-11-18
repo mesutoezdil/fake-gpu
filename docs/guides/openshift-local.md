@@ -70,7 +70,7 @@ oc -n amd-mock-crc-llm get pods -o wide
 oc -n amd-mock-crc-llm logs tiny-llm
 ```
 
-The adapter renders published chart 0.2.13 and changes only namespace and
+The adapter renders published chart 0.1.0 and changes only namespace and
 OpenShift service-account/SCC settings and the plugin’s `/dev` host mount.
 CRI-O requires normal `/dev/null`; the mock agent already stages GPU device files
 on host `/dev`. The plugin retains the synthetic sysfs discovery mount. The mock and plugin use a dedicated

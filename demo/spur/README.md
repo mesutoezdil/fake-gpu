@@ -3,7 +3,7 @@
 Run **unchanged Spur 0.14.0** against mock MI300X GPUs. A job occupies the
 whole GPU pool; a second job waits in Spur's queue, then starts when the first
 job completes. The payload checks injected character devices and exits when
-the presenter releases it. No GPU computation or RocJITsu backend is needed.
+the presenter releases it. No GPU computation is needed.
 
 This demo creates a separate `amd-spur` Kind cluster with its own kubeconfig.
 It does not switch the allocator or workloads in your normal `amd-mock` cluster.
@@ -62,7 +62,7 @@ demo/spur/setup.sh
 python3 -u demo/spur/run.py
 ```
 
-The script uses the published mock node `0.2.2` and chart `0.2.15`, then installs
+The script uses the published mock node `0.1.0` and chart `0.1.0`, then installs
 Spur's upstream CRD and this demo's controller/operator configuration. It
 uses a private kubeconfig at `tmp/spur/kubeconfig`. Set `SPUR_CLUSTER` and
 `SPUR_KUBECONFIG` to override the cluster name and kubeconfig location.

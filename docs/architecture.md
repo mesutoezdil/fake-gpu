@@ -210,7 +210,7 @@ setup scrapes the separate AMD collector endpoint instead.
 
 ## Allocation and runtime
 
-Chart 0.2.15 defaults to AMD's unchanged DRA v1.0.0 driver, republished for
+Chart 0.1.0 defaults to AMD's unchanged DRA v1.0.0 driver, republished for
 AMD64 and ARM64. Its chart mounts mock sysfs at the driver's `/sys`. Kubernetes
 allocates ResourceClaims; kubelet calls prepare/unprepare; the driver writes
 per-claim CDI specs. Containerd injects only the allocated card/render devices
@@ -219,9 +219,9 @@ and shared `/dev/kfd`. See the [DRA guide](guides/dra.md).
 The alternative device plugin reads the same sysfs and registers physical
 GPU capacity as `amd.com/gpu`. See the [device-plugin guide](guides/device-plugin.md).
 
-The published `amd-mock-kind-node:0.2.2` contains Kubernetes v1.37.0 and AMD's
+The published `amd-mock-kind-node:0.1.0` contains Kubernetes v1.37.0 and AMD's
 container toolkit, with CDI enabled. Both allocation paths use this image.
-Chart 0.2.15 uses node-agent image `fake-gpu:v0.2.9`. The kind configuration
+Chart 0.1.0 uses node-agent image `fake-gpu:v0.1.0`. The kind configuration
 maps localhost:8080 to dashboard NodePort 30080 automatically.
 
 ## Optional native device/library consumers
@@ -229,7 +229,7 @@ maps localhost:8080 to dashboard NodePort 30080 automatically.
 The default backend stages device nodes and sysfs as before. Consumers that
 need native device opens and libdrm queries can opt into the
 [CUSE/library backend](guides/driver-mock.md), using published driver image
-`fake-gpu-driver:v0.1.1` with `driverMock.enabled=true`.
+`fake-gpu-driver:v0.1.0` with `driverMock.enabled=true`.
 
 ```text
 (1) Profile + simulator + dashboard faults
@@ -253,7 +253,7 @@ need native device opens and libdrm queries can opt into the
 CUSE requires a Linux host with `/dev/cuse`; AMD64 and ARM64 are validated.
 This backend models device opens, discovery and selected library queries.
 Raw GPU ioctls, real GPU memory isolation and HIP execution are outside its
-scope. RocJITsu remains a separate optional computation experiment.
+scope.
 
 ## Telemetry
 

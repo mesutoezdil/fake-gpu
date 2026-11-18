@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build and optionally publish the optional driver image; no RocJITsu/HAMi.
+# Build and optionally publish the optional CUSE driver image.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 runtime=${CONTAINER_RUNTIME:-podman}
 repository=${DRIVER_IMAGE_REPOSITORY:-ghcr.io/mesutoezdil/fake-gpu-driver}
-version=${DRIVER_IMAGE_VERSION:-v0.1.1}
+version=${DRIVER_IMAGE_VERSION:-v0.1.0}
 push=false
 if [ "${1:-}" = --push ]; then push=true; shift; fi
 [ "$#" = 0 ] || { echo "usage: $0 [--push]" >&2; exit 2; }

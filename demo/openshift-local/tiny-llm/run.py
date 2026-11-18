@@ -26,7 +26,7 @@ def apply(docs):
 
 def render():
     chart = run(['helm', 'template', RELEASE, 'oci://ghcr.io/mesutoezdil/fake-gpu',
-                 '--version', '0.2.13', '-n', NS, '-f', str(HERE / 'values.yaml')],
+                 '--version', '0.1.0', '-n', NS, '-f', str(HERE / 'values.yaml')],
                 capture_output=True).stdout
     docs = [d for d in yaml.safe_load_all(chart) if d]
     for d in docs:

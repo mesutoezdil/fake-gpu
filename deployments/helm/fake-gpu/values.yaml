@@ -54,7 +54,7 @@ dra:
   allowDefaultNamespace: false
   image:
     repository: ghcr.io/mesutoezdil/amd-gpu-dra-driver
-    tag: v1.0.0-mock.3
+    tag: v1.0.0-fake.1
     pullPolicy: IfNotPresent
   mockSysPath: /var/lib/fake-gpu/sys
   kubeletPlugin:
@@ -66,7 +66,7 @@ metricsExporter:
   enabled: true
   # Metrics collection can exceed one second on emulated workers.
   readinessTimeoutSeconds: 5
-  image: ghcr.io/mesutoezdil/amd-device-metrics-exporter:v1.5.2-mock.2
+  image: ghcr.io/mesutoezdil/amd-device-metrics-exporter:v1.5.2-fake.1
   imagePullPolicy: IfNotPresent
   serviceMonitor:
     enabled: false

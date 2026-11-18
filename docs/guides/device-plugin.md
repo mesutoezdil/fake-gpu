@@ -23,7 +23,7 @@ the same GPU pool simultaneously.
 
 ```bash
 kind create cluster --name amd-mock \
-  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
   --config deployments/kind-node/kind-config.yaml
 ```
 
@@ -34,7 +34,7 @@ Use a fresh cluster rather than overwriting an existing DRA installation.
 
 ```bash
 helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
-  --version 0.2.15 --namespace amd-mock --create-namespace \
+  --version 0.1.0 --namespace amd-mock --create-namespace \
   --set dra.enabled=false --set devicePlugin.enabled=true
 kubectl -n amd-mock rollout status ds/fake-gpu --timeout=180s
 kubectl -n kube-system rollout status ds/fake-gpu-device-plugin --timeout=180s

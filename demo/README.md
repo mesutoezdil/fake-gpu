@@ -150,10 +150,10 @@ cluster is deleted.
 
 | Component | Version |
 | --- | --- |
-| Chart (default dashboards) | 0.2.15 |
-| kind node / Kubernetes | 0.2.2 / v1.37.0 |
-| Mock node-agent image | v0.2.9 |
-| AMD exporter runtime | v1.5.2-mock.2 |
+| Chart (default dashboards) | 0.1.0 |
+| kind node / Kubernetes | 0.1.0 / v1.37.0 |
+| Mock node-agent image | v0.1.0 |
+| AMD exporter runtime | v1.5.2-fake.1 |
 
 These versions are independent: changing chart configuration does not require
 rebuilding an unchanged node image. The build pins are in
@@ -202,4 +202,4 @@ Do not change a live cluster's partition mode while claims exist.
 [Spur demo](spur/README.md) creates a separate device-plugin cluster and uses
 unchanged upstream Spur to show submission, queueing, device injection, completion
 and GPU reuse. It includes setup, inspection and cleanup.
-No computation backend or RocJITsu installation is needed.
+No computation backend is needed.

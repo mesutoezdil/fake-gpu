@@ -205,7 +205,9 @@ fi
 section "5. Mock Library (amdsmi)"
 
 # 5.1 Library symbol count
-SYMBOL_COUNT=$(nm -D /Users/subinm/development/AI/GPU/k8s-infra-amd/pkg/mocksmi/libamd_smi.so 2>/dev/null | grep -c " T amdsmi_" || echo 0)
+MOCKSMI="$(cd "$(dirname "$0")/../pkg/mocksmi" && pwd)"
+[ -f "$MOCKSMI/libamd_smi.so" ] || make -C "$MOCKSMI" >/dev/null
+SYMBOL_COUNT=$(nm -D "$MOCKSMI/libamd_smi.so" 2>/dev/null | grep -c " T amdsmi_" || echo 0)
 if [ "$SYMBOL_COUNT" -ge 180 ]; then
   pass "Mock library: $SYMBOL_COUNT amdsmi_ symbols"
 else

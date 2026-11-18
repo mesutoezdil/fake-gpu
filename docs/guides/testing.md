@@ -1,6 +1,6 @@
 # Automated validation
 
-Release 0.2.2 targets Kubernetes 1.37. Use kind v0.33.0 or newer and kubectl
+Release 0.1.0 targets Kubernetes 1.37. Use kind v0.33.0 or newer and kubectl
 v1.37. Older kind versions can generate kubeadm APIs that Kubernetes 1.37
 rejects before any GPU test runs.
 
@@ -117,7 +117,7 @@ the host URL. Use `DASHBOARD_URL=http://127.0.0.1:9090` when testing a custom
 kind host port. Change that mapping before creating the cluster; container
 port mappings cannot be added to an existing kind node by a Helm upgrade.
 The DRA and Operator CI jobs run this check with the same kind configuration.
-Chart 0.2.15 uses mock image v0.2.9 and node image 0.2.2; the node image
+Chart 0.1.0 uses mock image v0.1.0 and node image 0.1.0; the node image
 still runs Kubernetes 1.37.
 
 ## Real AMD exporter telemetry
@@ -153,7 +153,7 @@ native AMD64 path. The tests invoke dashboard endpoints, not browser clicks.
 `demo/` contains runnable LLM, DRA, virtual partitioning, fault injection,
 multi-GPU, allocation/release, telemetry, profile and fixed same-GPU partition
 presentations. See its
-[presenter guide](../../demo/README.md). Chart 0.2.15 installs built-in
+[presenter guide](../../demo/README.md). Chart 0.1.0 installs built-in
 Prometheus/Grafana and the real exporter by default; the shared kind config
 exposes Grafana at localhost:3000 and the mock dashboard at localhost:8080.
 
@@ -210,7 +210,7 @@ python3 -u demo/spur/run.py
 It verifies whole-pool allocation, queueing without a competing Pod, character
 device injection, completion and subsequent GPU reuse. The operator launch
 endpoint requires controller-signed credentials. No HIP computation, DRA
-allocation, distributed workload or RocJITsu backend is asserted. See the
+allocation or distributed workload is asserted. See the
 [Spur demo](../../demo/spur/README.md).
 
 ## Optional CUSE/library backend

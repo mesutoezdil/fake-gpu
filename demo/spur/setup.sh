@@ -10,13 +10,13 @@ command -v helm >/dev/null
 command -v kubectl >/dev/null
 if ! kind get clusters | grep -Fxq "$CLUSTER"; then
   kind create cluster --name "$CLUSTER" \
-    --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+    --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
     --config "$ROOT/demo/spur/kind.yaml" --kubeconfig "$KUBECONFIG"
 else
   kind export kubeconfig --name "$CLUSTER" --kubeconfig "$KUBECONFIG"
 fi
 helm upgrade --install fake-gpu "${FAKE_GPU_CHART:-oci://ghcr.io/mesutoezdil/fake-gpu}" \
-  --version 0.2.15 --namespace amd-mock --create-namespace \
+  --version 0.1.0 --namespace amd-mock --create-namespace \
   --set dra.enabled=false --set devicePlugin.enabled=true \
   --set monitoring.enabled=false --set metricsExporter.enabled=false \
   --set dashboard.enabled=false --wait --timeout 5m

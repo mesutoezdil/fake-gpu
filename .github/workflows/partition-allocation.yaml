@@ -32,7 +32,7 @@ jobs:
           version: v0.33.0
           kubectl_version: v1.37.0
           cluster_name: amd-partitions
-          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2
+          node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           config: deployments/kind-node/kind-config.yaml
           wait: 120s
       - name: Registry credentials for the node
@@ -55,7 +55,7 @@ jobs:
         if: matrix.stack == 'published'
         run: |
           helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
-            --version 0.2.15 -n amd-mock --create-namespace \
+            --version 0.1.0 -n amd-mock --create-namespace \
             --set gpu.partition=DPX --wait --timeout 5m
       - name: Same-parent allocation, exhaustion, release, reuse and restart
         run: python3 -u tests/dra/partition-allocation.py | tee partition-allocation.log

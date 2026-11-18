@@ -14,7 +14,7 @@ set -uo pipefail
 GPU_PROFILE="${1:-mi300x}"
 CLUSTER_NAME="amd-mock"
 CHART="oci://ghcr.io/mesutoezdil/fake-gpu"
-CHART_VERSION="0.2.12"
+CHART_VERSION="0.1.0"
 
 if [ "${1:-}" = "--teardown" ]; then
   echo "Tearing down..."
@@ -85,7 +85,7 @@ export KIND_EXPERIMENTAL_PROVIDER=podman
 
 kind delete cluster --name "$CLUSTER_NAME" 2>/dev/null || true
 kind create cluster --name "$CLUSTER_NAME" \
-  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2 \
+  --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
   --config "$(cd "$(dirname "$0")/.." && pwd)/deployments/kind-node/kind-config.yaml"
 kubectl wait --for=condition=Ready node/${CLUSTER_NAME}-control-plane --timeout=60s
 echo ""

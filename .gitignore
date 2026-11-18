@@ -13,3 +13,4 @@ bin/
 __pycache__/
 .idea/
 .venv/
+/pkg/mocksmi/libamd_smi.so

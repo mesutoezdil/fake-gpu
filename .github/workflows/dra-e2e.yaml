@@ -40,7 +40,7 @@ jobs:
           kubectl_version: v1.37.0
           ignore_failed_clean: true
           cluster_name: amd-dra-test
-          node_image: ${{ matrix.stack == 'published' && 'ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2' || 'kindest/node:v1.37.0' }}
+          node_image: ${{ matrix.stack == 'published' && 'ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0' || 'kindest/node:v1.37.0' }}
           config: deployments/kind-node/kind-config.yaml
           wait: 120s
       - name: Registry credentials for the node
@@ -68,7 +68,7 @@ jobs:
         if: matrix.stack == 'published'
         run: |
           helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
-            --version 0.2.15 -n amd-mock --create-namespace
+            --version 0.1.0 -n amd-mock --create-namespace
           kubectl -n amd-mock rollout status ds/fake-gpu --timeout=120s
       - name: Dashboard available automatically on host
         run: python3 tests/dashboard-e2e.py

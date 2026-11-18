@@ -22,7 +22,7 @@ import (
 	"regexp"
 	"strings"
 
-	"amdgpumock/kfd"
+	"fakegpu/kfd"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/amdgpu"
 	"gopkg.in/yaml.v3"
