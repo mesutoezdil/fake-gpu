@@ -1,0 +1,110 @@
+package kfd
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+)
+
+// The AMD SMI replacement reads this device state, not Prometheus responses.
+// Atomic replacement prevents partial reads while telemetry is changing.
+func (r *Renderer) WriteSMIState(g *GPUState) error {
+	dir := filepath.Join(r.rootDir, "smi")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	text := fmt.Sprintf("%d %d %d %d %d %d %d %d %d\n%s\n%s\n%s\n%s %d %d\n", g.TemperatureC, g.PowerW, g.PowerCapW, g.UtilizationPct, g.MemoryUsedMB, g.MemoryTotalMB, g.ECCErrors, g.ClockGFXMHz, g.ClockMemMHz, g.Name, smiUUID(g.UUID), g.PCIBDF, g.Status, b2i(g.Throttled), g.RetiredPages)
+	path := filepath.Join(dir, fmt.Sprintf("gpu%d", g.Index))
+	tmp, err := os.CreateTemp(dir, ".gpu-")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString(text); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(0644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}
+func (r *Renderer) renderSMIState() error {
+	state := NewFleetState(r.profile, "")
+	gpus, _ := state.GetAll()
+	for i := range gpus {
+		if err := r.WriteSMIState(&gpus[i]); err != nil {
+			return err
+		}
+	}
+	// Drop removed GPUs without replacing the SMI directory inode mounted by
+	// live collectors. Common GPU state files are replaced atomically above.
+	entries, err := os.ReadDir(filepath.Join(r.rootDir, "smi"))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "gpu") {
+			index, err := strconv.Atoi(strings.TrimPrefix(entry.Name(), "gpu"))
+			if err == nil && index >= len(gpus) {
+				if err := os.Remove(filepath.Join(r.rootDir, "smi", entry.Name())); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return writeFile(filepath.Join(r.rootDir, "smi/count"), fmt.Sprintf("%d\n", len(gpus)))
+}
+
+// ReadSMIState loads the snapshots WriteSMIState produced. The fifth row is
+// read by the amd-smi CLI only; libamd_smi.so stops after the fourth.
+func ReadSMIState(dir string) ([]GPUState, error) {
+	raw, err := os.ReadFile(filepath.Join(dir, "count"))
+	if err != nil {
+		return nil, err
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return nil, fmt.Errorf("smi count: %w", err)
+	}
+	gpus := make([]GPUState, 0, count)
+	for i := 0; i < count; i++ {
+		data, err := os.ReadFile(filepath.Join(dir, fmt.Sprintf("gpu%d", i)))
+		if err != nil {
+			return nil, err
+		}
+		rows := strings.Split(strings.TrimSpace(string(data)), "\n")
+		if len(rows) < 4 {
+			return nil, fmt.Errorf("gpu%d: truncated snapshot", i)
+		}
+		g := GPUState{Index: i, Name: rows[1], UUID: rows[2], PCIBDF: rows[3], Status: "healthy"}
+		if _, err := fmt.Sscan(rows[0], &g.TemperatureC, &g.PowerW, &g.PowerCapW, &g.UtilizationPct, &g.MemoryUsedMB, &g.MemoryTotalMB, &g.ECCErrors, &g.ClockGFXMHz, &g.ClockMemMHz); err != nil {
+			return nil, fmt.Errorf("gpu%d: %w", i, err)
+		}
+		if len(rows) > 4 {
+			var throttled int
+			if _, err := fmt.Sscan(rows[4], &g.Status, &throttled, &g.RetiredPages); err != nil {
+				return nil, fmt.Errorf("gpu%d: %w", i, err)
+			}
+			g.Throttled = throttled == 1
+		}
+		gpus = append(gpus, g)
+	}
+	return gpus, nil
+}
+
+// AMD GPU Agent parses the vendor API UUID as a hexadecimal UUID. Profile IDs
+// are human-readable identifiers, so derive a stable canonical device UUID.
+func smiUUID(id string) string {
+	hash := sha256.Sum256([]byte(id))
+	hash[6] = (hash[6] & 0x0f) | 0x80
+	hash[8] = (hash[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", hash[:4], hash[4:6], hash[6:8], hash[8:10], hash[10:16])
+}

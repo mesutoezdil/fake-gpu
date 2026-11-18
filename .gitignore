@@ -1,0 +1,15 @@
+tmp/
+bin/
+*.exe
+.DS_Store
+/node-agent
+/nri-plugin
+bin/
+/tmp/
+*.tar
+
+/pkg/mocksmi/exporter/*.so.*
+
+__pycache__/
+.idea/
+.venv/

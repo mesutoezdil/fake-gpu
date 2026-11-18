@@ -1,0 +1,12 @@
+FROM alpine:3.21
+RUN apk add --no-cache tini
+COPY bin/node-agent /usr/local/bin/node-agent
+COPY bin/nri-plugin /usr/local/bin/nri-plugin
+COPY bin/amd-smi /usr/local/bin/amd-smi
+COPY bin/fakegpuctl /usr/local/bin/fakegpuctl
+RUN ln -s amd-smi /usr/local/bin/rocm-smi
+COPY profiles/ /etc/fake-gpu/profiles/
+COPY pkg/mocksmi/libamd_smi.so /usr/lib64/libamd_smi.so
+RUN ln -s /usr/lib64/libamd_smi.so /usr/lib64/libamd_smi.so.27
+ENTRYPOINT ["tini", "--"]
+CMD ["node-agent"]

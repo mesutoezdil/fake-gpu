@@ -1,0 +1,24 @@
+# Go tests and the single-machine Docker mode. No cluster, so it runs on every PR.
+name: unit-and-docker
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache: false
+      - run: test -z "$(gofmt -l cmd pkg)"
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - run: tests/docker/run.sh

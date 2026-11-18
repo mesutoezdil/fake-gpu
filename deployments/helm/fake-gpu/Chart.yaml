@@ -1,0 +1,11 @@
+apiVersion: v2
+name: fake-gpu
+description: Mock AMD GPU infrastructure for Kubernetes testing
+type: application
+version: 0.2.15
+appVersion: "v0.2.9"
+dependencies:
+  - name: k8s-gpu-dra-driver
+    alias: dra
+    version: 0.2.0
+    condition: dra.enabled
