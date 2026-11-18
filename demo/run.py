@@ -59,6 +59,10 @@ def allocator():
         return args.allocator
     if k("get", "ds/fake-gpu-dra-kubeletplugin", "-n", "amd-mock", "--ignore-not-found").strip():
         return "dra"
+    # The chart's plugin counts as soon as it is installed: node capacity shows
+    # up seconds later, and a workload simply stays Pending until then.
+    if k("get", "ds/fake-gpu-device-plugin", "-n", "kube-system", "--ignore-not-found").strip():
+        return "device-plugin"
     nodes = json.loads(k("get", "nodes", "-o", "json"))["items"]
     if any(int(n["status"].get("allocatable", {}).get("amd.com/gpu", "0")) for n in nodes):
         return "device-plugin"
