@@ -13,7 +13,7 @@ the test that fails if the surface breaks.
 | Metrics | AMD's unmodified exporter through Prometheus and Grafana; retired pages and xGMI link state from the agent | Exporter metrics for retired pages and xGMI state (v1.5.2 has none); health service | `tests/telemetry/e2e.py`, `tests/demo/presenter-e2e.py` |
 | Telemetry model | Utilization sets power, power sets temperature with lag, throttling at 100 C or on request | Fan curves, per-rail power, timing that matches a physical card | `TestTelemetryFollowsLoad`, `TestBusyHoldsRequestedLoad` |
 | Faults | Crash, overheat, ECC, throttle, page retirement, xGMI link down, with recovery | Fault timing, driver reset sequences, propagation between sibling partitions | `faults_test.go`, `tests/profile-e2e.py` |
-| Kernel log | One line per fault transition, opt-in | amdgpu's real message formats | `TestFaultTransitionsReachKernelLog` |
+| Kernel log | One line per fault transition, opt-in. ECC, xGMI, throttling and over-temperature use the amdgpu 7.0 driver's own message formats | Page retirement, device loss and recovery, which the driver has no single line for and which are tagged `fake-gpu` | `TestFaultTransitionsReachKernelLog` |
 | CLI | `amd-smi` and `rocm-smi` subset over the same state | Byte-exact output of the real tools, write commands | `cmd/amd-smi/main_test.go` |
 | Profiles | Seven Instinct models, plus capture from a real machine | Mixed models on one node | `TestCaptureRoundTripsRenderedProfile` |
 | Compute | Nothing | HIP, ROCm, VRAM allocation, DMA, SR-IOV | |

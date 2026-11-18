@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 // The renderer writes what amdgpu exposes, so capturing a rendered profile
@@ -65,6 +67,40 @@ func TestCaptureRoundTripsRenderedProfile(t *testing.T) {
 				t.Fatalf("captured profile does not render: %v", err)
 			}
 		})
+	}
+}
+
+// The checked-in capture from a real card has to keep working as a profile.
+func TestCapturedExampleDrivesTheMock(t *testing.T) {
+	files, _ := filepath.Glob("../../../examples/captured/*.yaml")
+	if len(files) == 0 {
+		t.Fatal("no captured example profiles")
+	}
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := new(Profile)
+		if err := yaml.Unmarshal(data, p); err != nil {
+			t.Fatalf("%s: %v", file, err)
+		}
+		root := t.TempDir()
+		r := NewRenderer(p, root)
+		if err := r.RenderAll(); err != nil {
+			t.Fatalf("%s: %v", file, err)
+		}
+		state := NewFleetState(p, "captured")
+		sim := NewDynamicSimulator(state)
+		state.UpdateGPU(0, []byte(`{"target_utilization_pct":90}`))
+		for i := 0; i < 100; i++ {
+			sim.tick()
+		}
+		g, _ := state.GetGPU(0)
+		limit := int(p.DeviceDefault.Power.MaxPowerCapW)
+		if limit == 0 || g.PowerW < limit/2 || g.PowerW > limit || g.TemperatureC < 60 {
+			t.Fatalf("%s: load does not move telemetry: %d W of %d W, %d C", file, g.PowerW, limit, g.TemperatureC)
+		}
 	}
 }
 

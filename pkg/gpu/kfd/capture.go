@@ -180,7 +180,7 @@ func CaptureProfile(root string, o CaptureOptions) (*Profile, []string, error) {
 	const microwatt, millidegree = 1_000_000, 1000
 	d.Power.MaxPowerCapW = uint32(get("power cap", "power1_cap_max", microwatt))
 	if d.Power.MaxPowerCapW == 0 {
-		notes = append(notes, "max_power_cap_w is 0, so the mock cannot derive power or temperature: set it by hand, or capture again while the GPU is active (a suspended GPU hides its sensors)")
+		notes = append(notes, "max_power_cap_w is 0, so the mock cannot derive power or temperature: set it by hand. A suspended GPU hides its sensors until it is active again; an integrated GPU has no power cap at all")
 	}
 	if v, ok := ref.num("power1_cap_default"); ok {
 		d.Power.DefaultPowerCapW = uint32(v / microwatt)

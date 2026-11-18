@@ -26,13 +26,17 @@ type Renderer struct {
 	xgmiDown   map[int]bool   // KFD node IDs whose xGMI links are down
 	kernelLog  string         // file that receives one line per fault transition
 	lastStatus map[int]string // by GPU index, to log only changes
+	kernelSeq  uint64         // event number in RAS lines
 }
 
 // SetKernelLog makes fault transitions append amdgpu-style lines to path.
 // /dev/kmsg puts them into the node's real kernel log, so it is opt-in.
 func (r *Renderer) SetKernelLog(path string) { r.kernelLog = path }
 
-// logTransition records a status change the way a driver would report it.
+// logTransition records a status change in the kernel log. Where the amdgpu
+// driver has a message for the event, the line uses the driver's own format
+// (taken from the 7.0 module) so log parsers match it. Events the driver has
+// no line for are written under a fake-gpu tag instead of an invented format.
 func (r *Renderer) logTransition(gpu *GPUState) {
 	r.mu.Lock()
 	last, seen := r.lastStatus[gpu.Index]
@@ -40,6 +44,8 @@ func (r *Renderer) logTransition(gpu *GPUState) {
 		r.lastStatus = map[int]string{}
 	}
 	r.lastStatus[gpu.Index] = gpu.Status
+	r.kernelSeq++
+	seq := r.kernelSeq
 	r.mu.Unlock()
 	if !seen {
 		last = "healthy"
@@ -47,19 +53,31 @@ func (r *Renderer) logTransition(gpu *GPUState) {
 	if r.kernelLog == "" || last == gpu.Status {
 		return
 	}
-	event := map[string]string{
-		"healthy":        "recovered",
-		"crashed":        "device lost",
-		"overheating":    fmt.Sprintf("temperature %d C above limit", gpu.TemperatureC),
-		"ecc_error":      fmt.Sprintf("%d uncorrectable ECC error(s)", gpu.ECCErrors),
-		"throttling":     "thermal throttling active",
-		"page_retired":   fmt.Sprintf("%d VRAM page(s) retired", gpu.RetiredPages),
-		"xgmi_link_down": "xGMI link down",
-	}[gpu.Status]
-	if event == "" {
-		event = "status " + gpu.Status
+	ras := func(count int, block string) string {
+		return fmt.Sprintf("amdgpu: {%d} socket: 0, die: 0, %d new uncorrectable hardware errors detected in %s block", seq, count, block)
 	}
-	line := fmt.Sprintf("amdgpu %s: fake-gpu: %s\n", gpu.PCIBDF, event)
+	var event string
+	switch {
+	case gpu.Status == "healthy" && last == "crashed":
+		event = "amdgpu: GPU reset(1) succeeded!"
+	case gpu.Status == "healthy":
+		event = "fake-gpu: recovered"
+	case gpu.Status == "crashed":
+		event = "fake-gpu: device lost"
+	case gpu.Status == "overheating":
+		event = "amdgpu: ERROR: GPU over temperature range(SW CTF) detected!"
+	case gpu.Status == "ecc_error":
+		event = ras(gpu.ECCErrors, "umc")
+	case gpu.Status == "throttling":
+		event = "amdgpu: WARN: GPU thermal throttling temperature reached, expect performance decrease. TEMP_HOTSPOT."
+	case gpu.Status == "page_retired":
+		event = fmt.Sprintf("fake-gpu: %d VRAM page(s) retired", gpu.RetiredPages)
+	case gpu.Status == "xgmi_link_down":
+		event = ras(1, "xgmi_wafl")
+	default:
+		event = "fake-gpu: status " + gpu.Status
+	}
+	line := fmt.Sprintf("amdgpu %s: %s\n", gpu.PCIBDF, event)
 	if r.kernelLog == "/dev/kmsg" {
 		line = "<3>" + line // KERN_ERR
 	}

@@ -135,7 +135,9 @@ node-agent --config rx9070xt.yaml --profiles profiles
 ```
 
 `capture-profile` reads the `amdgpu` sysfs tree without root and writes a
-profile for the card with the most VRAM. Anything it could not read is listed
+profile for the card with the most VRAM;
+[examples/captured/rx9070xt.yaml](examples/captured/rx9070xt.yaml) is what it
+produced on a real one. Anything it could not read is listed
 at the top of the file. A suspended card hides its power caps and sensors, so
 run it while the GPU is awake. Serial-like IDs are replaced unless you pass
 `--keep-ids`.

@@ -1,0 +1,96 @@
+# Captured from 1 x AMD Radeon RX 9070 XT
+# NOTE: left out 0000:0f:00.0 (device 0x13c0): another model, capture it with --gpu 0000:0f:00.0
+version: "1.0"
+system:
+    amdgpu_version: 7.0.0-43-generic
+    rocm_version: ""
+    amdsmi_version: ""
+device_defaults:
+    name: AMD Radeon RX 9070 XT
+    vendor_id: 4098
+    device_id: 30032
+    subsystem_vendor_id: 6217
+    subsystem_device_id: 21524
+    gfx_target_version: 120001
+    architecture: rdna4
+    compute:
+        cu_count: 64
+        simd_per_cu: 2
+        simd_count: 128
+        stream_processors: 2048
+        wave_front_size: 32
+        array_count: 8
+        simd_arrays_per_engine: 2
+        cu_per_simd_array: 8
+        num_xcc: 1
+        max_waves_per_simd: 16
+        lds_size_in_kb: 64
+        gds_size_in_kb: 0
+        num_sdma_engines: 2
+        num_sdma_xgmi_engines: 0
+        num_cp_queues: 4
+    memory:
+        vram_type: samsung
+        vram_size_bytes: 17095983104
+        vram_used_bytes: 59912192
+        vram_bus_width: 256
+        vis_vram_size_bytes: 17095983104
+        gtt_size_bytes: 31423545344
+        max_mem_clk_mhz: 1258
+    power:
+        current_socket_power_w: 14
+        default_power_cap_w: 304
+        max_power_cap_w: 340
+        min_power_cap_w: 212
+    thermal:
+        edge_temperature_c: 28
+        hotspot_temperature_c: 30
+        mem_temperature_c: 28
+        shutdown_temperature_c: 115
+        slowdown_temperature_c: 110
+    clocks:
+        max_gfx_clk_mhz: 2400
+        min_gfx_clk_mhz: 3
+        current_gfx_clk_mhz: 3
+        max_mem_clk_mhz: 1258
+        min_mem_clk_mhz: 96
+        current_mem_clk_mhz: 96
+    pcie:
+        gen: 5
+        width: 16
+        max_gen: 5
+        max_width: 16
+        replay_count: 0
+    ecc:
+        enabled: false
+        correctable_count: 0
+        uncorrectable_count: 0
+    firmware:
+        pmfw_version: "0x00684c00"
+    utilization:
+        gfx_activity_percent: 0
+        umc_activity_percent: 0
+        mm_activity_percent: 0
+    partition:
+        mode: SPX
+        nps_mode: NPS1
+xgmi:
+    hive_id: ""
+    links_per_gpu: 0
+    lanes_per_link: 0
+    bandwidth_per_link_gbps: 0
+    link_type: 0
+pcie_topology:
+    root_complexes:
+        - id: pci0000:00
+          numa_node: 0
+          devices:
+            - "0000:03:00.0"
+devices:
+    - partition_index: 0
+      index: 0
+      uuid: GPU-amd-7550-0000-0000-000000000000
+      pci_bdf: "0000:03:00.0"
+      drm_render_minor: 128
+      unique_id: "0xfa4e000000000001"
+      xgmi_device_id: ""

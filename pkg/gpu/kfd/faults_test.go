@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -211,15 +212,30 @@ func TestFaultTransitionsReachKernelLog(t *testing.T) {
 	postAction(t, api, "/api/actions/retire-page?gpu=0&count=2", 200)
 	postAction(t, api, "/api/actions/recover?gpu=0", 200)
 	postAction(t, api, "/api/actions/xgmi-down?gpu=1", 200)
+	postAction(t, api, "/api/actions/throttle?gpu=2", 200)
+	postAction(t, api, "/api/actions/overheat?gpu=3", 200)
+	postAction(t, api, "/api/actions/ecc-error?gpu=4&count=3", 200)
 	data, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "amdgpu 0000:05:00.0: fake-gpu: 2 VRAM page(s) retired\n" +
-		"amdgpu 0000:05:00.0: fake-gpu: recovered\n" +
-		"amdgpu 0000:26:00.0: fake-gpu: xGMI link down\n"
-	if string(data) != want {
-		t.Fatalf("kernel log:\n%s", data)
+	// Formats with an "amdgpu:" tag are the real driver's; "{n}" is its event number.
+	want := []string{
+		`^amdgpu 0000:05:00\.0: fake-gpu: 2 VRAM page\(s\) retired$`,
+		`^amdgpu 0000:05:00\.0: fake-gpu: recovered$`,
+		`^amdgpu 0000:26:00\.0: amdgpu: \{\d+\} socket: 0, die: 0, 1 new uncorrectable hardware errors detected in xgmi_wafl block$`,
+		`^amdgpu 0000:46:00\.0: amdgpu: WARN: GPU thermal throttling temperature reached, expect performance decrease\. TEMP_HOTSPOT\.$`,
+		`^amdgpu 0000:65:00\.0: amdgpu: ERROR: GPU over temperature range\(SW CTF\) detected!$`,
+		`^amdgpu 0000:85:00\.0: amdgpu: \{\d+\} socket: 0, die: 0, 3 new uncorrectable hardware errors detected in umc block$`,
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != len(want) {
+		t.Fatalf("kernel log has %d lines, want %d:\n%s", len(lines), len(want), data)
+	}
+	for i, pattern := range want {
+		if !regexp.MustCompile(pattern).MatchString(lines[i]) {
+			t.Fatalf("line %d: %q does not match %s", i, lines[i], pattern)
+		}
 	}
 }
 
