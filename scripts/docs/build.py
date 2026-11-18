@@ -52,7 +52,7 @@ def stage():
     landing = landing.replace('(getting-started.md)', '(docs/site/getting-started.md)').replace('(demos.md)', '(docs/site/demos.md)').replace('(scenarios.md)', '(docs/site/scenarios.md)').replace('(../architecture.md)', '(docs/architecture.md)').replace('(../how-it-works.md)', '(docs/how-it-works.md)').replace('(../guides/testing.md)', '(docs/guides/testing.md)')
     (STAGE / 'index.md').write_text(landing)
     readme = (STAGE / 'repository.md').read_text()
-    quickstart = readme.split('## Quick start\n', 1)[1].split('## Dashboard\n', 1)[0]
+    quickstart = readme.split('## Quick start\n', 1)[1].split('\n## ', 1)[0] + '\n'
     quickstart = quickstart.replace('(docs/', '(../').replace('deployments/kind-node/', 'deployments/kind-node/')
     (STAGE / 'docs/site/getting-started.md').write_text('# Quick start\n\n' + quickstart + '\nSee [telemetry](../guides/telemetry.md) for Grafana and dashboard details.\n')
 
