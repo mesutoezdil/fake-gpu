@@ -34,6 +34,8 @@ if ! $SKIP; then
  fi
  kind create cluster --name "$CLUSTER" --image "$IMAGE_REGISTRY/amd-mock-kind-node:$RELEASE_VERSION" \
   --config "$ROOT/tmp/demo/kind-config.yaml"
+ # Private registry: pass this machine's docker login on to the node.
+ if [ "${KIND_NODE_REGISTRY_AUTH:-}" = 1 ]; then "$ROOT/scripts/ci/node-registry-auth.sh" "$CLUSTER"; fi
 fi
 # Use an explicit context: no accidental install into another current cluster.
 # FAKE_GPU_CHART=deployments/helm/fake-gpu installs this checkout's chart.

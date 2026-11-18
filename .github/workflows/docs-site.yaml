@@ -27,7 +27,8 @@ jobs:
         with:
           path: tmp/docs-site
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Pages is skipped while the repository is private.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest
     permissions:

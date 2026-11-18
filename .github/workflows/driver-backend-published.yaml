@@ -6,6 +6,7 @@ on:
     paths: ['.github/workflows/driver-backend-published.yaml']
 permissions:
   contents: read
+  packages: read
 defaults:
   run:
     shell: bash
@@ -27,6 +28,12 @@ jobs:
         run: |
           sudo modprobe cuse
           test -c /dev/cuse
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           version: v0.33.0
@@ -35,6 +42,8 @@ jobs:
           cluster_name: amd-published-driver
           config: deployments/kind-node/kind-config.yaml
           wait: 120s
+      - name: Registry credentials for the node
+        run: scripts/ci/node-registry-auth.sh amd-published-driver
       - name: Fresh published chart and images (no build)
         run: |
           args=()

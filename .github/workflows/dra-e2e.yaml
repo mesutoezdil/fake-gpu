@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   kind:
@@ -27,6 +28,12 @@ jobs:
           CGO_ENABLED=0 go test -c -o /tmp/kfd-restart.test ./pkg/gpu/kfd
           sudo /tmp/kfd-restart.test -test.run TestRenderDeviceNodesAfterUncleanShutdown -test.v
       - uses: azure/setup-helm@v4
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           version: v0.33.0
@@ -36,6 +43,8 @@ jobs:
           node_image: ${{ matrix.stack == 'published' && 'ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2' || 'kindest/node:v1.37.0' }}
           config: deployments/kind-node/kind-config.yaml
           wait: 120s
+      - name: Registry credentials for the node
+        run: scripts/ci/node-registry-auth.sh amd-dra-test
       - name: Build and deploy patched mock
         if: matrix.stack == 'source-upstream'
         run: |

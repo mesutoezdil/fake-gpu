@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  packages: read
 jobs:
   telemetry:
     strategy:
@@ -40,6 +41,12 @@ jobs:
             gcc -shared -fPIC -O2 -Wl,-soname,libamd_smi.so.27 -o /out/libamd_smi.so /src/mock_amdsmi.c /src/stubs.c
           docker build -f Dockerfile.prebuilt -t local/fake-gpu:test tmp/ci
           docker build -f deployments/metrics-exporter/Dockerfile -t local/amd-device-metrics-exporter:test .
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           version: v0.33.0
@@ -49,6 +56,8 @@ jobs:
           config: deployments/kind-node/kind-config.yaml
           ignore_failed_clean: true
           wait: 120s
+      - name: Registry credentials for the node
+        run: scripts/ci/node-registry-auth.sh amd-telemetry-test
       - name: Install Prometheus, Grafana and mock with real AMD collector
         env:
           ALLOCATOR: ${{ matrix.allocator }}

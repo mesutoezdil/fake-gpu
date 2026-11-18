@@ -8,6 +8,7 @@ on:
     paths: ['pkg/mockdriver/**', 'pkg/gpu/kfd/**', 'cmd/node-agent/**', 'deployments/driver-mock/**', 'deployments/helm/**', 'tests/driver-mock/**', '.github/workflows/driver-backend.yaml']
 permissions:
   contents: read
+  packages: read
 defaults:
   run:
     shell: bash
@@ -68,6 +69,12 @@ jobs:
         run: |
           sudo modprobe cuse
           docker build -f deployments/driver-mock/Dockerfile -t local/fake-gpu-driver:test .
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           version: v0.33.0
@@ -75,6 +82,8 @@ jobs:
           node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.2.2
           cluster_name: amd-profile-test
           wait: 120s
+      - name: Registry credentials for the node
+        run: scripts/ci/node-registry-auth.sh amd-profile-test
       - name: Install and test real device-plugin allocation with CUSE
         run: |
           kind load docker-image local/fake-gpu-driver:test --name amd-profile-test
@@ -117,6 +126,12 @@ jobs:
           sudo modprobe cuse
           docker build -f deployments/driver-mock/Dockerfile -t local/fake-gpu-driver:test .
           docker build -f deployments/metrics-exporter/Dockerfile -t local/amd-device-metrics-exporter:test .
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           version: v0.33.0
@@ -125,6 +140,8 @@ jobs:
           cluster_name: amd-driver-test
           config: deployments/kind-node/kind-config.yaml
           wait: 120s
+      - name: Registry credentials for the node
+        run: scripts/ci/node-registry-auth.sh amd-driver-test
       - name: Install source chart with optional backend
         run: |
           kind load docker-image local/fake-gpu-driver:test local/amd-device-metrics-exporter:test --name amd-driver-test

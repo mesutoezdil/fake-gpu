@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  packages: read
 jobs:
   demos:
     runs-on: ubuntu-24.04
@@ -20,9 +21,16 @@ jobs:
       DEMO_CONTEXT: kind-amd-presenter-test
       ALLOCATOR: ${{ matrix.allocator }}
       DEMO_CONFIG: /tmp/amd-demo-values.yaml
+      KIND_NODE_REGISTRY_AUTH: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
+      - name: Log in to GHCR
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
       - uses: helm/kind-action@v1
         with:
           install_only: true
