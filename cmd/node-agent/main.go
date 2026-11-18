@@ -141,6 +141,7 @@ func main() {
 
 	// Create device nodes with mknod if running as root.
 	if os.Getuid() == 0 && provider == nil {
+		renderer.SetHostDevDir("/dev")
 		if err := createDeviceNodes(&profile, *rootDir); err != nil {
 			log.Printf("warning: device node creation in mock root failed (non-fatal): %v", err)
 		}

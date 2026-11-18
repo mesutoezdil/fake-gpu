@@ -127,13 +127,57 @@ func TestXGMILinkDownDisablesBothEnds(t *testing.T) {
 }
 
 func TestFaultsRejectCrashedGPU(t *testing.T) {
-	// No renderer: a crash with one removes device nodes under the real /dev.
-	api := NewAPIServer(NewFleetState(profilesForTest(t)["mi300x"], "mi300x"), nil)
+	api, _, _ := faultFixture(t)
 	postAction(t, api, "/api/actions/crash?gpu=2", 200)
 	for _, action := range []string{"throttle", "retire-page", "xgmi-down"} {
 		postAction(t, api, "/api/actions/"+action+"?gpu=2", 409)
 	}
 	postAction(t, api, "/api/actions/throttle?gpu=99", 404)
+}
+
+// A crash takes the card's device nodes away, but only in the directory the
+// renderer was told to manage. Left unset, nothing outside its root is touched.
+func TestCrashManagesOnlyTheConfiguredDeviceDir(t *testing.T) {
+	p := profilesForTest(t)["mi300x"]
+	dev := t.TempDir()
+	nodes := []string{filepath.Join(dev, "dri/renderD128"), filepath.Join(dev, "dri/card0")}
+	plant := func() {
+		t.Helper()
+		for _, node := range nodes {
+			if err := writeFile(node, ""); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	present := func() int {
+		n := 0
+		for _, node := range nodes {
+			if _, err := os.Stat(node); err == nil {
+				n++
+			}
+		}
+		return n
+	}
+
+	unmanaged := NewRenderer(p, t.TempDir())
+	if err := unmanaged.RenderAll(); err != nil {
+		t.Fatal(err)
+	}
+	plant()
+	postAction(t, NewAPIServer(NewFleetState(p, "mi300x"), unmanaged), "/api/actions/crash?gpu=0", 200)
+	if present() != 2 {
+		t.Fatal("a renderer without a device directory removed device nodes")
+	}
+
+	managed := NewRenderer(p, t.TempDir())
+	if err := managed.RenderAll(); err != nil {
+		t.Fatal(err)
+	}
+	managed.SetHostDevDir(dev)
+	postAction(t, NewAPIServer(NewFleetState(p, "mi300x"), managed), "/api/actions/crash?gpu=0", 200)
+	if present() != 0 {
+		t.Fatal("crash left the card and render nodes in the managed directory")
+	}
 }
 
 func TestTelemetryFollowsLoad(t *testing.T) {

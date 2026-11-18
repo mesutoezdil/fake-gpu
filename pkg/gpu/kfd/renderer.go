@@ -27,7 +27,13 @@ type Renderer struct {
 	kernelLog  string         // file that receives one line per fault transition
 	lastStatus map[int]string // by GPU index, to log only changes
 	kernelSeq  uint64         // event number in RAS lines
+	hostDev    string         // device directory to manage on crash and recovery; empty leaves the host alone
 }
+
+// SetHostDevDir lets crash and recovery remove and recreate card and render
+// nodes in dir, normally /dev. Without it the renderer only writes below its
+// own root, which is what tests and unprivileged runs want.
+func (r *Renderer) SetHostDevDir(dir string) { r.hostDev = dir }
 
 // SetKernelLog makes fault transitions append amdgpu-style lines to path.
 // /dev/kmsg puts them into the node's real kernel log, so it is opt-in.
@@ -187,8 +193,8 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 	// The device plugin walks /sys/module/amdgpu/drivers/pci:amdgpu/<BDF>/drm/
 	// to discover GPUs. Removing the BDF dir makes the GPU invisible to the
 	// plugin. Removing /dev/dri/* prevents kubelet from mounting it.
-	renderNode := fmt.Sprintf("/dev/dri/renderD%d", 128+gpu.Index)
-	cardNode := fmt.Sprintf("/dev/dri/card%d", gpu.Index)
+	renderNode := filepath.Join(r.hostDev, fmt.Sprintf("dri/renderD%d", 128+gpu.Index))
+	cardNode := filepath.Join(r.hostDev, fmt.Sprintf("dri/card%d", gpu.Index))
 	bdfDriverDir := filepath.Join(driverDir, bdf)
 	if r.profile.DeviceDefault.Partition.Mode == "DPX" {
 		if gpu.PartitionIndex > 0 {
@@ -204,7 +210,7 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 			if err := r.backend.RemoveDevice(gpu.Index); err != nil {
 				return err
 			}
-		} else {
+		} else if r.hostDev != "" {
 			os.Remove(renderNode)
 			os.Remove(cardNode)
 		}
@@ -215,7 +221,7 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 			if err := r.backend.RestoreDevice(gpu.Index); err != nil {
 				return err
 			}
-		} else {
+		} else if r.hostDev != "" {
 			if _, err := os.Stat(renderNode); os.IsNotExist(err) {
 				syscall.Mknod(renderNode, syscall.S_IFCHR|0o660, int(uint64(226)<<8|uint64(128+gpu.Index)))
 			}
