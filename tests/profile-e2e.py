@@ -115,35 +115,16 @@ try:
     restart_plugin()
     until(lambda: capacity() == count, 'recovered GPU rediscovered')
     ok('recovery restores physical GPU capacity')
-    hot = api('/api/actions/overheat?gpu=0', post=True)
-    assert hot['status'] == 'overheating'
-    assert int(agent('cat', '/var/lib/fake-gpu/sys/class/drm/card0/device/hwmon/hwmon0/temp1_input')) == hot['temperature_c'] * 1000
-    api('/api/actions/recover?gpu=0', post=True)
-    ok('overheat reaches the sysfs temperature sensor')
-    api('/api/actions/ecc-error?gpu=0', post=True)
-    assert int(agent('cat', '/var/lib/fake-gpu/sys/class/kfd/kfd/topology/nodes/1/ras/ecc_uncorrectable')) > 0
-    api('/api/actions/recover?gpu=0', post=True)
-    assert agent('cat', '/var/lib/fake-gpu/sys/class/kfd/kfd/topology/nodes/1/ras/ecc_uncorrectable').strip() == '0'
-    ok('ECC injection and recovery reach sysfs')
-    drm = '/var/lib/fake-gpu/sys/class/drm/card0/device/'
-    link = '/var/lib/fake-gpu/sys/class/kfd/kfd/topology/nodes/1/io_links/1/properties'
+    # Every fault, checked in the API and in the rendered sysfs files, by the
+    # scenario the image ships. A failed expectation makes the command fail.
+    print(agent('fakegpuctl', 'run', '/usr/share/fake-gpu/scenarios/faults.yaml'), flush=True)
+    ok('overheat, ECC, page retirement, xGMI and throttling reach sysfs and recover')
     api('/api/actions/retire-page?gpu=0&count=2', post=True)
-    assert agent('cat', drm + 'ras/gpu_vram_bad_pages').count(' : R') == 2
     assert 'RETIRED: 2' in agent('amd-smi', 'bad-pages', '--gpu', '0')
-    api('/api/actions/recover?gpu=0', post=True)
-    assert agent('cat', drm + 'ras/gpu_vram_bad_pages') == ''
-    ok('page retirement and recovery reach sysfs and amd-smi')
-    api('/api/actions/xgmi-down?gpu=0', post=True)
-    assert agent('cat', drm + 'xgmi_error').strip() == '1'
-    assert 'flags 0x0000000000000000' in agent('cat', link)
-    api('/api/actions/recover?gpu=0', post=True)
-    assert agent('cat', drm + 'xgmi_error').strip() == '0'
-    assert 'flags 0x0000000000000001' in agent('cat', link)
-    ok('xGMI link fault and recovery reach sysfs')
     assert api('/api/actions/throttle?gpu=0', post=True)['throttled']
     until(lambda: 'THROTTLE_STATUS: THROTTLED' in agent('amd-smi', 'metric', '--gpu', '0'), 'throttle visible in amd-smi', 30)
     api('/api/actions/recover?gpu=0', post=True)
-    ok('throttling reaches amd-smi')
+    ok('page retirement and throttling reach amd-smi')
     print(f'Results: {passed} passed, 0 failed', flush=True)
 finally:
     api('/api/actions/recover?gpu=0', post=True)

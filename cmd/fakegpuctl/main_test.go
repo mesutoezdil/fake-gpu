@@ -180,3 +180,50 @@ func TestExecHoldsTheCardBusyWhileTheCommandRuns(t *testing.T) {
 		t.Fatalf("no command: exit %d", code)
 	}
 }
+
+func TestScenarioChecksRenderedFiles(t *testing.T) {
+	data, err := os.ReadFile("../../profiles/mi300x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p kfd.Profile
+	if err := yaml.Unmarshal(data, &p); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	renderer := kfd.NewRenderer(&p, root)
+	if err := renderer.RenderAll(); err != nil {
+		t.Fatal(err)
+	}
+	state := kfd.NewFleetState(&p, "mi300x")
+	sim := kfd.NewDynamicSimulator(state)
+	sim.Start(5)
+	defer sim.Stop()
+	server := httptest.NewServer(kfd.NewAPIServer(state, renderer))
+	defer server.Close()
+	t.Setenv("FAKE_GPU_STATE_DIR", root)
+
+	play := func(path string) (int, string) {
+		var out, errOut bytes.Buffer
+		code := run([]string{"-api", server.URL, "run", path}, &out, &errOut)
+		return code, out.String() + errOut.String()
+	}
+	// The scenario the image ships has to pass against a real renderer.
+	if code, got := play("../../examples/scenarios/faults.yaml"); code != 0 {
+		t.Fatalf("shipped fault scenario failed:\n%s", got)
+	}
+
+	bad := filepath.Join(t.TempDir(), "bad.yaml")
+	body := "steps:\n  - {at: 0s, gpu: 0, do: retire-page, files: {sys/class/drm/card0/device/ras/gpu_vram_bad_pages: \"lines 5\"}, within: 300ms}\n"
+	if err := os.WriteFile(bad, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, got := play(bad); code != 1 || !strings.Contains(got, "has 1 lines, want 5") {
+		t.Fatalf("file expectation: exit %d\n%s", code, got)
+	}
+	missing := filepath.Join(t.TempDir(), "missing.yaml")
+	os.WriteFile(missing, []byte("steps:\n  - {at: 0s, gpu: 0, files: {sys/no/such/file: \"1\"}, within: 200ms}\n"), 0o644)
+	if code, _ := play(missing); code != 1 {
+		t.Fatal("a missing file passed")
+	}
+}

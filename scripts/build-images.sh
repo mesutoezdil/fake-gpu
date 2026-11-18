@@ -31,6 +31,7 @@ for arch in amd64 arm64; do
     context="$BUILD_DIR/$arch"
     mkdir -p "$context/mock/bin" "$context/mock/pkg/mocksmi" "$context/driver" "$context/node/bin"
     cp -R "$REPO_ROOT/profiles" "$context/mock/"
+    mkdir -p "$context/mock/examples" && cp -R "$REPO_ROOT/examples/scenarios" "$context/mock/examples/"
     (cd "$REPO_ROOT" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/mock/bin/node-agent" ./cmd/node-agent)
     (cd "$REPO_ROOT" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/mock/bin/nri-plugin" ./cmd/nri-plugin)
     (cd "$REPO_ROOT" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/mock/bin/amd-smi" ./cmd/amd-smi)

@@ -1,0 +1,74 @@
+# Every fault on card 0, checked in the API and in the files the agent renders.
+# The file checks need the state directory, so run it where that is visible:
+#   kubectl -n amd-mock exec ds/fake-gpu -c node-agent -- fakegpuctl run /usr/share/fake-gpu/scenarios/faults.yaml
+#   docker compose -f deployments/docker/compose.yaml exec fake-gpu fakegpuctl run /usr/share/fake-gpu/scenarios/faults.yaml
+name: every fault on card 0, down to sysfs
+steps:
+  - at: 0s
+    gpu: 0
+    do: overheat
+    expect: {status: overheating, temperature_c: "105"}
+    files:
+      sys/class/drm/card0/device/hwmon/hwmon0/temp1_input: "105000"
+
+  - at: 2s
+    gpu: 0
+    do: recover
+    expect: {status: healthy}
+
+  - at: 3s
+    gpu: 0
+    do: ecc-error
+    expect: {status: ecc_error, ecc_errors: ">= 1"}
+    files:
+      sys/class/kfd/kfd/topology/nodes/1/ras/ecc_uncorrectable: ">= 1"
+      sys/class/kfd/kfd/topology/nodes/1/ras/fatal_error: "1"
+
+  - at: 5s
+    gpu: 0
+    do: recover
+    files:
+      sys/class/kfd/kfd/topology/nodes/1/ras/ecc_uncorrectable: "0"
+      sys/class/kfd/kfd/topology/nodes/1/ras/fatal_error: "0"
+
+  - at: 6s
+    gpu: 0
+    do: retire-page
+    args: {count: "2"}
+    expect: {status: page_retired, retired_pages: "2"}
+    files:
+      sys/class/drm/card0/device/ras/gpu_vram_bad_pages: "lines 2"
+      sys/class/kfd/kfd/topology/nodes/1/ras/fatal_error: "0"
+
+  - at: 8s
+    gpu: 0
+    do: recover
+    files:
+      sys/class/drm/card0/device/ras/gpu_vram_bad_pages: "lines 0"
+
+  - at: 9s
+    gpu: 0
+    do: xgmi-down
+    expect: {status: xgmi_link_down}
+    files:
+      sys/class/drm/card0/device/xgmi_error: "1"
+      sys/class/kfd/kfd/topology/nodes/1/io_links/1/properties: "~ flags 0x0000000000000000"
+      sys/class/kfd/kfd/topology/nodes/1/io_links/0/properties: "~ flags 0x0000000000000001"
+
+  - at: 11s
+    gpu: 0
+    do: recover
+    files:
+      sys/class/drm/card0/device/xgmi_error: "0"
+      sys/class/kfd/kfd/topology/nodes/1/io_links/1/properties: "~ flags 0x0000000000000001"
+
+  - at: 12s
+    gpu: 0
+    do: throttle
+    expect: {status: throttling, throttled: "true", clock_gfx_mhz: "< 1200"}
+    within: 10s
+
+  - at: 16s
+    gpu: 0
+    do: recover
+    expect: {status: healthy, throttled: "false", retired_pages: "0", ecc_errors: "0"}

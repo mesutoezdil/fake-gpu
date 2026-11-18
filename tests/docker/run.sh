@@ -18,14 +18,18 @@ out=$(smi list)
 [ "$(grep -c '^GPU: ' <<< "$out")" = 8 ] || { echo "FAIL: expected 8 GPUs"; echo "$out"; exit 1; }
 echo "PASS second container lists 8 mock GPUs"
 
+# The shipped scenario drives every fault and checks the API and sysfs.
+out=$(compose exec -T fake-gpu fakegpuctl run /usr/share/fake-gpu/scenarios/faults.yaml) || { echo "FAIL: fault scenario"; echo "$out"; exit 1; }
+expect "$out" "scenario passed" "fault scenario passes inside the agent container"
+
+# A second container sees the same state through the shared volume.
 post "throttle?gpu=1"
 post "retire-page?gpu=2&count=2"
 post "xgmi-down?gpu=3"
 sleep 3
-expect "$(smi metric --gpu 1)" "THROTTLE_STATUS: THROTTLED" "throttle reaches amd-smi"
-expect "$(smi bad-pages --gpu 2)" "RETIRED: 2" "page retirement reaches amd-smi"
-expect "$(smi monitor --gpu 3)" "xgmi_link_down" "xGMI fault reaches amd-smi"
-expect "$(compose exec -T fake-gpu cat /var/lib/fake-gpu/sys/class/drm/card3/device/xgmi_error)" "1" "xGMI fault reaches sysfs"
+expect "$(smi metric --gpu 1)" "THROTTLE_STATUS: THROTTLED" "throttle reaches amd-smi in another container"
+expect "$(smi bad-pages --gpu 2)" "RETIRED: 2" "page retirement reaches amd-smi in another container"
+expect "$(smi monitor --gpu 3)" "xgmi_link_down" "xGMI fault reaches amd-smi in another container"
 expect "$(compose exec -T fake-gpu rocm-smi)" "GPU_TEMP" "rocm-smi alias works"
 expect "$(compose exec -T fake-gpu fakegpuctl recover -gpu 3)" "GPU 3: healthy" "fakegpuctl drives the API"
 expect "$(compose exec -T fake-gpu fakegpuctl list)" "page_retired" "fakegpuctl lists fleet state"

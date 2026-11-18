@@ -27,6 +27,7 @@ type step struct {
 	Do     string            `yaml:"do"`     // an API action; empty for a pure check
 	Args   map[string]string `yaml:"args"`   // action options such as util or count
 	Expect map[string]string `yaml:"expect"` // field: "<op> value", e.g. temperature_c: ">= 80"
+	Files  map[string]string `yaml:"files"`  // path below the state directory: "<op> value", "~ text" or "lines N"
 	Within time.Duration     `yaml:"within"` // how long expect may take; default 30s
 }
 
@@ -60,11 +61,18 @@ func runScenario(client *http.Client, api, path string, out io.Writer) error {
 			}
 			fmt.Fprintf(out, "%s %s -> %s\n", stamp, st.Do, g.Status)
 		}
-		if len(st.Expect) > 0 {
+		if len(st.Expect)+len(st.Files) > 0 {
 			if err := await(client, api, st); err != nil {
 				return fmt.Errorf("step %d: %w", i+1, err)
 			}
-			fmt.Fprintf(out, "%s ok: %s\n", stamp, describe(st.Expect))
+			all := map[string]string{}
+			for k, v := range st.Expect {
+				all[k] = v
+			}
+			for k, v := range st.Files {
+				all[k] = v
+			}
+			fmt.Fprintf(out, "%s ok: %s\n", stamp, describe(all))
 		}
 	}
 	fmt.Fprintf(out, "scenario passed in %.1fs\n", time.Since(start).Seconds())
@@ -96,6 +104,11 @@ func await(client *http.Client, api string, st step) error {
 			}
 			if !ok {
 				unmet = fmt.Sprintf("%s is %v, want %s", field, got, want)
+			}
+		}
+		for path, want := range st.Files {
+			if problem := fileHolds(path, want); problem != "" {
+				unmet = problem
 			}
 		}
 		if unmet == "" {
@@ -144,6 +157,45 @@ func holds(got any, want string) (bool, error) {
 		return text != value, nil
 	}
 	return false, fmt.Errorf("%s needs a number, got %q", op, text)
+}
+
+// fileHolds checks a file the agent rendered, such as a sysfs attribute. It
+// only works where the state directory is visible: inside the agent container
+// or one that mounts its volume. It returns what is wrong, or "".
+func fileHolds(path, want string) string {
+	root := os.Getenv("FAKE_GPU_STATE_DIR")
+	if root == "" {
+		root = "/var/lib/fake-gpu"
+	}
+	data, err := os.ReadFile(root + "/" + path)
+	if err != nil {
+		return err.Error()
+	}
+	text := strings.TrimSpace(string(data))
+	want = strings.TrimSpace(want)
+	switch {
+	case strings.HasPrefix(want, "lines "):
+		lines := 0
+		if text != "" {
+			lines = strings.Count(text, "\n") + 1
+		}
+		if n, err := strconv.Atoi(strings.TrimSpace(want[6:])); err != nil || n != lines {
+			return fmt.Sprintf("%s has %d lines, want %s", path, lines, want[6:])
+		}
+	case strings.HasPrefix(want, "~"):
+		if !strings.Contains(text, strings.TrimSpace(want[1:])) {
+			return fmt.Sprintf("%s does not contain %q", path, strings.TrimSpace(want[1:]))
+		}
+	default:
+		ok, err := holds(text, want)
+		if number, convErr := strconv.ParseFloat(text, 64); convErr == nil {
+			ok, err = holds(number, want)
+		}
+		if err != nil || !ok {
+			return fmt.Sprintf("%s is %q, want %s", path, text, want)
+		}
+	}
+	return ""
 }
 
 func describe(expect map[string]string) string {

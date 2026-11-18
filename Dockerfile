@@ -21,5 +21,6 @@ RUN ln -s /usr/lib64/libamd_smi.so /usr/lib64/libamd_smi.so.27
 COPY --from=builder /src/pkg/hipshim/libfakehip.so /usr/lib64/libfakehip.so
 COPY --from=builder /src/pkg/hipshim/fakehip.h /usr/include/fakehip.h
 COPY profiles/ /etc/fake-gpu/profiles/
+COPY examples/scenarios/ /usr/share/fake-gpu/scenarios/
 ENTRYPOINT ["tini", "--"]
 CMD ["node-agent"]

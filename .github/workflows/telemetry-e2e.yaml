@@ -33,6 +33,7 @@ jobs:
         run: |
           mkdir -p tmp/ci/bin tmp/ci/pkg/mocksmi
           cp -R profiles tmp/ci/
+          mkdir -p "tmp/ci/examples" && cp -R "examples/scenarios" "tmp/ci/examples/"
           CGO_ENABLED=0 GOOS=linux go build -o tmp/ci/bin/node-agent ./cmd/node-agent
           CGO_ENABLED=0 GOOS=linux go build -o tmp/ci/bin/nri-plugin ./cmd/nri-plugin
           CGO_ENABLED=0 GOOS=linux go build -o tmp/ci/bin/amd-smi ./cmd/amd-smi

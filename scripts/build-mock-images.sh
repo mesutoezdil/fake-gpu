@@ -19,6 +19,7 @@ for arch in amd64 arm64; do
  context="$BUILD/$arch"
  mkdir -p "$context/bin" "$context/pkg/mocksmi"
  cp -R profiles "$context/"
+ mkdir -p "$context/examples" && cp -R "examples/scenarios" "$context/examples/"
  CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/bin/node-agent" ./cmd/node-agent
  CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/bin/nri-plugin" ./cmd/nri-plugin
  CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/bin/amd-smi" ./cmd/amd-smi
