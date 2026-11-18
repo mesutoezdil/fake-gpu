@@ -180,6 +180,45 @@ func TestCrashManagesOnlyTheConfiguredDeviceDir(t *testing.T) {
 	}
 }
 
+// On a machine with an integrated GPU the discrete card is not renderD128.
+// Crash and recovery have to follow the minor the profile states.
+func TestCrashFollowsTheProfilesRenderMinor(t *testing.T) {
+	base := profilesForTest(t)["mi300x"]
+	p := *base
+	p.Devices = append([]DeviceConfig(nil), base.Devices...)
+	for i := range p.Devices {
+		p.Devices[i].DRMRenderMinor += 5 // card 0 is renderD133
+	}
+	root, dev := t.TempDir(), t.TempDir()
+	r := NewRenderer(&p, root)
+	if err := r.RenderAll(); err != nil {
+		t.Fatal(err)
+	}
+	r.SetHostDevDir(dev)
+	for _, name := range []string{"dri/renderD128", "dri/renderD133", "dri/card0"} {
+		if err := writeFile(filepath.Join(dev, name), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	api := NewAPIServer(NewFleetState(&p, "mi300x"), r)
+	postAction(t, api, "/api/actions/crash?gpu=0", 200)
+	if _, err := os.Stat(filepath.Join(dev, "dri/renderD133")); err == nil {
+		t.Fatal("crash left the card's own render node")
+	}
+	if _, err := os.Stat(filepath.Join(dev, "dri/renderD128")); err != nil {
+		t.Fatal("crash removed renderD128, which belongs to another device")
+	}
+	// Recovery rebuilds the driver binding under the same minor.
+	postAction(t, api, "/api/actions/recover?gpu=0", 200)
+	binding := filepath.Join(root, "sys/module/amdgpu/drivers/pci:amdgpu", p.Devices[0].PCIBDF, "drm")
+	if _, err := os.Stat(filepath.Join(binding, "renderD133")); err != nil {
+		t.Fatalf("recovered binding lacks renderD133: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(binding, "renderD128")); err == nil {
+		t.Fatal("recovered binding invented renderD128")
+	}
+}
+
 func TestTelemetryFollowsLoad(t *testing.T) {
 	api, state, _ := faultFixture(t)
 	sim := NewDynamicSimulator(state)

@@ -193,7 +193,7 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 	// The device plugin walks /sys/module/amdgpu/drivers/pci:amdgpu/<BDF>/drm/
 	// to discover GPUs. Removing the BDF dir makes the GPU invisible to the
 	// plugin. Removing /dev/dri/* prevents kubelet from mounting it.
-	renderNode := filepath.Join(r.hostDev, fmt.Sprintf("dri/renderD%d", 128+gpu.Index))
+	renderNode := filepath.Join(r.hostDev, fmt.Sprintf("dri/renderD%d", r.renderMinor(gpu.Index)))
 	cardNode := filepath.Join(r.hostDev, fmt.Sprintf("dri/card%d", gpu.Index))
 	bdfDriverDir := filepath.Join(driverDir, bdf)
 	if r.profile.DeviceDefault.Partition.Mode == "DPX" {
@@ -223,7 +223,7 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 			}
 		} else if r.hostDev != "" {
 			if _, err := os.Stat(renderNode); os.IsNotExist(err) {
-				syscall.Mknod(renderNode, syscall.S_IFCHR|0o660, int(uint64(226)<<8|uint64(128+gpu.Index)))
+				syscall.Mknod(renderNode, syscall.S_IFCHR|0o660, int(uint64(226)<<8|uint64(r.renderMinor(gpu.Index))))
 			}
 			if _, err := os.Stat(cardNode); os.IsNotExist(err) {
 				syscall.Mknod(cardNode, syscall.S_IFCHR|0o660, int(uint64(226)<<8|uint64(gpu.Index)))
@@ -513,7 +513,7 @@ func (r *Renderer) renderGPUNode(dir string, dev *DeviceConfig) error {
 func (r *Renderer) renderDriverBDF(gpu *GPUState) {
 	if gpu.PartitionIndex > 0 {
 		dir := filepath.Join(r.rootDir, fmt.Sprintf("sys/devices/platform/amdgpu_xcp_%d/drm", gpu.Index))
-		for _, name := range []string{fmt.Sprintf("card%d", gpu.Index), fmt.Sprintf("renderD%d", 128+gpu.Index)} {
+		for _, name := range []string{fmt.Sprintf("card%d", gpu.Index), fmt.Sprintf("renderD%d", r.renderMinor(gpu.Index))} {
 			writeFile(filepath.Join(dir, name, "device/vendor"), fmt.Sprintf("0x%04x\n", r.profile.DeviceDefault.VendorID))
 		}
 		return
@@ -537,7 +537,7 @@ func (r *Renderer) renderDriverBDF(gpu *GPUState) {
 	writeFile(filepath.Join(bdfDir, "device"), fmt.Sprintf("0x%04x\n", r.profile.DeviceDefault.DeviceID))
 	cardDir := filepath.Join(bdfDir, fmt.Sprintf("drm/card%d/device", gpu.Index))
 	writeFile(filepath.Join(cardDir, "vendor"), fmt.Sprintf("0x%04x\n", r.profile.DeviceDefault.VendorID))
-	renderDir := filepath.Join(bdfDir, fmt.Sprintf("drm/renderD%d/device", 128+gpu.Index))
+	renderDir := filepath.Join(bdfDir, fmt.Sprintf("drm/renderD%d/device", r.renderMinor(gpu.Index)))
 	writeFile(filepath.Join(renderDir, "vendor"), fmt.Sprintf("0x%04x\n", r.profile.DeviceDefault.VendorID))
 }
 
@@ -1051,4 +1051,16 @@ func dpmTable(lo, hi, current uint32) string {
 		return fmt.Sprintf("0: %dMhz\n1: %dMhz *", lo, hi)
 	}
 	return fmt.Sprintf("0: %dMhz *\n1: %dMhz", lo, hi)
+}
+
+// renderMinor returns the DRM render minor of a card. Profiles state it per
+// device; 128+index is only the layout of a machine whose cards were probed
+// in order with nothing else on the DRM bus, so it is the fallback, not the rule.
+func (r *Renderer) renderMinor(index int) int {
+	for _, dev := range r.profile.Devices {
+		if dev.Index == index {
+			return dev.DRMRenderMinor
+		}
+	}
+	return 128 + index
 }
