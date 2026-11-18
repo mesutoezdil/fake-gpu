@@ -170,6 +170,9 @@ func TestLiveTelemetryReachesSysfs(t *testing.T) {
 	if read("mem_info_vram_total") != "206158430208" || read("hwmon/hwmon0/power1_cap_max") != "750000000" || read("current_link_speed") != "32.0 GT/s PCIe" || read("pp_dpm_sclk") != "0: 500Mhz *\n1: 2100Mhz" {
 		t.Fatalf("static attributes: vram %s cap %s link %s sclk %q", read("mem_info_vram_total"), read("hwmon/hwmon0/power1_cap_max"), read("current_link_speed"), read("pp_dpm_sclk"))
 	}
+	if read("hwmon/hwmon0/temp2_label") != "junction" || read("hwmon/hwmon0/freq1_label") != "sclk" || read("hwmon/hwmon0/power1_label") != "PPT" || read("hwmon/hwmon0/freq2_input") != "1300000000" || read("power_dpm_force_performance_level") != "auto" {
+		t.Fatalf("hwmon labels: %q %q %q, mclk %s", read("hwmon/hwmon0/temp2_label"), read("hwmon/hwmon0/freq1_label"), read("hwmon/hwmon0/power1_label"), read("hwmon/hwmon0/freq2_input"))
+	}
 	// The simulator, not only API actions, has to keep the sensors current.
 	sim := NewDynamicSimulator(state, func(g *GPUState) {
 		if err := r.WriteTelemetrySysfs(g); err != nil {
@@ -181,7 +184,7 @@ func TestLiveTelemetryReachesSysfs(t *testing.T) {
 		sim.tick()
 	}
 	g, _ := state.GetGPU(0)
-	if read("gpu_busy_percent") != strconv.Itoa(g.UtilizationPct) || g.UtilizationPct < 87 || read("mem_info_vram_used") != "4294967296" ||
+	if read("gpu_busy_percent") != strconv.Itoa(g.UtilizationPct) || g.UtilizationPct < 87 || read("mem_info_vram_used") != "4294967296" || read("mem_info_vis_vram_used") != "4294967296" ||
 		read("hwmon/hwmon0/temp1_input") != strconv.Itoa(g.TemperatureC*1000) || read("hwmon/hwmon0/power1_average") != strconv.Itoa(g.PowerW*1000000) ||
 		read("pp_dpm_sclk") != "0: 500Mhz\n1: 2100Mhz *" {
 		t.Fatalf("live attributes stale: busy %s temp %s power %s sclk %q state %+v", read("gpu_busy_percent"), read("hwmon/hwmon0/temp1_input"), read("hwmon/hwmon0/power1_average"), read("pp_dpm_sclk"), g)

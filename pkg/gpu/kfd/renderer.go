@@ -955,6 +955,22 @@ func (r *Renderer) renderDeviceAttrs(drmDir string, dev *DeviceConfig) error {
 		"pp_dpm_sclk":             dpmTable(d.Clocks.MinGFXClkMHz, d.Clocks.MaxGFXClkMHz, d.Clocks.CurrentGFXClkMHz),
 		"pp_dpm_mclk":             dpmTable(d.Clocks.MinMemClkMHz, d.Clocks.MaxMemClkMHz, d.Clocks.CurrentMemClkMHz),
 
+		"mem_info_vis_vram_used":            fmt.Sprint(d.Memory.VRAMUsedBytes),
+		"mem_info_gtt_used":                 "0",
+		"power_dpm_force_performance_level": "auto",
+		"thermal_throttling_logging":        dev.PCIBDF + ": thermal throttling logging enabled, with interval 60 seconds",
+
+		// Labels as the amdgpu hwmon device reports them.
+		"hwmon/hwmon0/temp1_label":  "edge",
+		"hwmon/hwmon0/temp2_label":  "junction",
+		"hwmon/hwmon0/temp3_label":  "mem",
+		"hwmon/hwmon0/power1_label": "PPT",
+		"hwmon/hwmon0/freq1_label":  "sclk",
+		"hwmon/hwmon0/freq2_label":  "mclk",
+		"hwmon/hwmon0/freq2_input":  fmt.Sprint(uint64(d.Clocks.CurrentMemClkMHz) * 1_000_000),
+		"hwmon/hwmon0/temp2_crit":   fmt.Sprint(d.Thermal.SlowdownTempC * millidegree),
+		"hwmon/hwmon0/temp3_crit":   fmt.Sprint(d.Thermal.SlowdownTempC * millidegree),
+
 		"hwmon/hwmon0/name":               "amdgpu",
 		"hwmon/hwmon0/power1_cap":         fmt.Sprint(uint64(d.Power.DefaultPowerCapW) * microwatt),
 		"hwmon/hwmon0/power1_cap_default": fmt.Sprint(uint64(d.Power.DefaultPowerCapW) * microwatt),
@@ -989,6 +1005,8 @@ func (r *Renderer) WriteTelemetrySysfs(gpu *GPUState) error {
 	files := map[string]string{
 		"gpu_busy_percent":            fmt.Sprint(gpu.UtilizationPct),
 		"mem_info_vram_used":          fmt.Sprint(uint64(gpu.MemoryUsedMB) << 20),
+		"mem_info_vis_vram_used":      fmt.Sprint(uint64(gpu.MemoryUsedMB) << 20),
+		"hwmon/hwmon0/freq2_input":    fmt.Sprint(uint64(gpu.ClockMemMHz) * 1_000_000),
 		"pp_dpm_sclk":                 dpmTable(clocks.MinGFXClkMHz, clocks.MaxGFXClkMHz, uint32(gpu.ClockGFXMHz)),
 		"hwmon/hwmon0/temp1_input":    fmt.Sprint(gpu.TemperatureC * 1000),
 		"hwmon/hwmon0/temp2_input":    fmt.Sprint(max(gpu.TemperatureC+6, 0) * 1000),
