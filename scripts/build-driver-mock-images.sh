@@ -20,6 +20,6 @@ else
   done
   podman manifest rm "$repository:$version" >/dev/null 2>&1 || true
   podman manifest create "$repository:$version"
-  for arch in amd64 arm64; do podman manifest add "$repository:$version" "$repository:$version-$arch"; done
+  for arch in amd64 arm64; do podman manifest add "$repository:$version" "containers-storage:$repository:$version-$arch"; done
   if $push; then podman manifest push --all "$repository:$version" "docker://$repository:$version"; fi
 fi

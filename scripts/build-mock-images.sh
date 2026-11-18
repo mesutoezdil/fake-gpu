@@ -32,7 +32,7 @@ for image in "fake-gpu:v$MOCK_IMAGE_VERSION"; do
  manifest="$IMAGE_REGISTRY/$image"
  podman manifest rm "$manifest" >/dev/null 2>&1 || true
  podman manifest create "$manifest"
- for arch in amd64 arm64; do podman manifest add "$manifest" "$manifest-$arch"; done
+ for arch in amd64 arm64; do podman manifest add "$manifest" "containers-storage:$manifest-$arch"; done
  if $PUSH; then
    if [ -n "${REGISTRY_AUTHFILE:-}" ]; then
      podman manifest push --authfile "$REGISTRY_AUTHFILE" --all "$manifest" "docker://$manifest"

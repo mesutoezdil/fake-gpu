@@ -40,7 +40,7 @@ spec:
           import time, os, json
 
           print("=" * 60)
-          print("  Fake GPU — LLM Inference Demo")
+          print("  Fake GPU: LLM Inference Demo")
           print("=" * 60)
           print()
           print(f"Pod scheduled with a DRA ResourceClaim.")

@@ -14,7 +14,7 @@ device_defaults:
   device_id: 0x75a0
   subsystem_vendor_id: 0x1002
   subsystem_device_id: 0x75a0
-  gfx_target_version: 90500       # gfx950 — hex needed for CDNA 4
+  gfx_target_version: 90500       # gfx950: hex needed for CDNA 4
   architecture: "cdna4"
 
   compute:

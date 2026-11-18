@@ -416,15 +416,15 @@ func (s *APIServer) handleTrayLayout(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Compute partition modes — AMD's GPU partitioning (equivalent of MIG).
+// Compute partition modes: AMD's GPU partitioning (equivalent of MIG).
 // Compute partition modes supported by MI300X/MI325X/MI350X/MI355X.
 // SPX=1 (full GPU), DPX=2, QPX=4, CPX=8 (one per XCD).
-// TPX (3-way) is not supported on MI300X — removed.
+// TPX (3-way) is not supported on MI300X: removed.
 var partitionModes = []map[string]any{
-	{"mode": "SPX", "partitions": 1, "description": "Single Partition — full GPU"},
+	{"mode": "SPX", "partitions": 1, "description": "Single Partition: full GPU"},
 	{"mode": "DPX", "partitions": 2, "description": "Dual Partition"},
 	{"mode": "QPX", "partitions": 4, "description": "Quad Partition"},
-	{"mode": "CPX", "partitions": 8, "description": "Compute Partition — one per XCD"},
+	{"mode": "CPX", "partitions": 8, "description": "Compute Partition: one per XCD"},
 }
 
 func (s *APIServer) handlePartitions(w http.ResponseWriter, r *http.Request) {

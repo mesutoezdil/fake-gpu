@@ -29,7 +29,7 @@ if [ "${1:-}" = "--profile" ]; then
 fi
 
 echo "============================================"
-echo "  Fake GPU — macOS Setup"
+echo "  Fake GPU: macOS Setup"
 echo "  Profile: $GPU_PROFILE"
 echo "============================================"
 echo ""

@@ -17,7 +17,7 @@ AMD64 and Linux ARM64 nodes are supported; Apple-silicon Macs run ARM64
 nodes inside the container runtime's Linux VM. Internet access is needed
 to pull images and the chart. No Go compiler or local image build is required.
 
-Install using the [README quick start](../../README.md#quick-start), then verify
+Install using the [README quick start](../../README.md#on-kubernetes), then verify
 on that same cluster:
 
 ```bash

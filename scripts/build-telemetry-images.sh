@@ -33,7 +33,7 @@ for image in "fake-gpu:v$MOCK_IMAGE_VERSION" "amd-device-metrics-exporter:$METRI
  manifest="$IMAGE_REGISTRY/$image"
  podman manifest rm "$manifest" >/dev/null 2>&1 || true
  podman manifest create "$manifest"
- for arch in amd64 arm64; do podman manifest add "$manifest" "$manifest-$arch"; done
+ for arch in amd64 arm64; do podman manifest add "$manifest" "containers-storage:$manifest-$arch"; done
  if $PUSH; then podman manifest push --all "$manifest" "docker://$manifest"; fi
 done
 helm lint deployments/helm/fake-gpu

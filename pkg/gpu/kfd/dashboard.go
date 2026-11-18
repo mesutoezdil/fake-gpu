@@ -101,7 +101,7 @@ const dashboardHTML = `<!DOCTYPE html>
 <div id="rack"></div>
 <div class="note">
   GPUs are grouped by <strong>server tray</strong>. All GPUs in a tray are always the
-  same model — you cannot mix GPU types within a single server. Change the tray's model with
+  same model: you cannot mix GPU types within a single server. Change the tray's model with
   the dropdown in each tray header. This reflects how real AMD Instinct servers are built.
 </div>
 
@@ -226,11 +226,11 @@ async function refresh() {
     const isOAM = gpuName.includes('MI300X') || gpuName.includes('MI325X') || gpuName.includes('MI350X') || gpuName.includes('MI355X');
     const layoutEl = document.getElementById('layout-info');
     if (isOAM) {
-      layoutEl.textContent = trays.length + ' OAM server (' + data.gpus.length + ' GPUs — UBB baseboard, cannot split)';
+      layoutEl.textContent = trays.length + ' OAM server (' + data.gpus.length + ' GPUs: UBB baseboard, cannot split)';
     } else if (gpuName.includes('MI300A')) {
       layoutEl.textContent = trays.length + ' APU server (' + data.gpus.length + ' GPUs)';
     } else {
-      layoutEl.textContent = trays.length + ' server(s) (' + data.gpus.length + ' GPUs — PCIe, ' + (trays.length > 1 ? 'multi-server' : 'single server') + ')';
+      layoutEl.textContent = trays.length + ' server(s) (' + data.gpus.length + ' GPUs: PCIe, ' + (trays.length > 1 ? 'multi-server' : 'single server') + ')';
     }
 
     // Render trays

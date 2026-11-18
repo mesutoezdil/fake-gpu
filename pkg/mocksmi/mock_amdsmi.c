@@ -1,4 +1,4 @@
-// Mock libamd_smi.so — implements the 15 amdsmi_* functions that amd-smi calls.
+// Mock libamd_smi.so: implements the 15 amdsmi_* functions that amd-smi calls.
 //
 // Reads GPU configuration from MOCK_AMDSMI_CONFIG (YAML parsed at init).
 // For this initial version, config is compiled in from the profile defaults.
@@ -17,7 +17,7 @@
 #define MOCK_GPU_COUNT 8
 #endif
 
-// Internal GPU state — populated at init from environment or defaults.
+// Internal GPU state: populated at init from environment or defaults.
 typedef struct {
     int index;
     char name[64];
@@ -49,7 +49,7 @@ static mock_gpu_t g_gpus[MOCK_GPU_COUNT];
 static int g_gpu_count = MOCK_GPU_COUNT;
 static int g_initialized = 0;
 
-// Dummy handles — we use the GPU index offset from a base pointer value.
+// Dummy handles: we use the GPU index offset from a base pointer value.
 static uintptr_t g_socket_handle = 0xA000;
 
 // BDF addresses for 8 GPUs (MI300X default layout)
@@ -94,7 +94,7 @@ static void init_defaults(void) {
     }
 }
 
-// === Public API — matches real libamd_smi.so signatures ===
+// === Public API: matches real libamd_smi.so signatures ===
 
 amdsmi_status_t amdsmi_init(uint64_t init_flags) {
     if (g_initialized) return AMDSMI_STATUS_SUCCESS;
@@ -258,7 +258,7 @@ amdsmi_status_t amdsmi_get_gpu_memory_partition(amdsmi_processor_handle handle,
 
 // Additional functions amd-smi calls during startup.
 
-// amdsmi_get_lib_version — returns the mock library version.
+// amdsmi_get_lib_version: returns the mock library version.
 typedef struct {
     uint32_t year;
     uint32_t major;
@@ -277,7 +277,7 @@ amdsmi_status_t amdsmi_get_lib_version(amdsmi_version_t *version) {
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_processor_handles_by_type — returns handles filtered by type.
+// amdsmi_get_processor_handles_by_type: returns handles filtered by type.
 // Type 1 = AMD_GPU, Type 2 = AMD_CPU.
 amdsmi_status_t amdsmi_get_processor_handles_by_type(
         amdsmi_socket_handle socket,
@@ -297,12 +297,12 @@ amdsmi_status_t amdsmi_get_processor_handles_by_type(
         return AMDSMI_STATUS_SUCCESS;
     }
 
-    // AMD_CPU or other — no mock CPUs
+    // AMD_CPU or other: no mock CPUs
     *count = 0;
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_processor_type — returns the type of a processor handle.
+// amdsmi_get_processor_type: returns the type of a processor handle.
 amdsmi_status_t amdsmi_get_processor_type(amdsmi_processor_handle handle,
                                            uint32_t *type) {
     if (!type) return AMDSMI_STATUS_INVAL;
@@ -310,7 +310,7 @@ amdsmi_status_t amdsmi_get_processor_type(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_device_uuid — returns the UUID string.
+// amdsmi_get_gpu_device_uuid: returns the UUID string.
 amdsmi_status_t amdsmi_get_gpu_device_uuid(amdsmi_processor_handle handle,
                                             unsigned int *uuid_length,
                                             char *uuid) {
@@ -323,7 +323,7 @@ amdsmi_status_t amdsmi_get_gpu_device_uuid(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_vram_usage — returns used/total VRAM.
+// amdsmi_get_gpu_vram_usage: returns used/total VRAM.
 typedef struct {
     uint64_t vram_total;
     uint64_t vram_used;
@@ -338,7 +338,7 @@ amdsmi_status_t amdsmi_get_gpu_vram_usage(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_energy_count — returns energy counter.
+// amdsmi_get_energy_count: returns energy counter.
 typedef struct {
     uint64_t power;
     float counter_resolution;
@@ -355,7 +355,7 @@ amdsmi_status_t amdsmi_get_energy_count(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_clock_info — returns clock frequencies.
+// amdsmi_get_clock_info: returns clock frequencies.
 typedef struct {
     uint32_t clk;
     uint32_t clk_deep_sleep;
@@ -381,7 +381,7 @@ amdsmi_status_t amdsmi_get_clock_info(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_pcie_info — returns PCIe link info.
+// amdsmi_get_pcie_info: returns PCIe link info.
 typedef struct {
     struct {
         uint32_t max_pcie_width;
@@ -408,7 +408,7 @@ amdsmi_status_t amdsmi_get_pcie_info(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_driver_info — returns driver info.
+// amdsmi_get_gpu_driver_info: returns driver info.
 typedef struct {
     char driver_name[64];
     char driver_version[64];
@@ -425,7 +425,7 @@ amdsmi_status_t amdsmi_get_gpu_driver_info(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_kfd_info — returns KFD node info.
+// amdsmi_get_gpu_kfd_info: returns KFD node info.
 typedef struct {
     uint64_t kfd_id;
     uint32_t node_id;
@@ -442,7 +442,7 @@ amdsmi_status_t amdsmi_get_gpu_kfd_info(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_socket_info — returns socket name.
+// amdsmi_get_socket_info: returns socket name.
 typedef struct {
     char name[128];
 } amdsmi_sock_info_t;
@@ -454,7 +454,7 @@ amdsmi_status_t amdsmi_get_socket_info(amdsmi_socket_handle socket,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_vbios_info — returns VBIOS info.
+// amdsmi_get_gpu_vbios_info: returns VBIOS info.
 typedef struct {
     char name[64];
     char build_date[64];
@@ -473,7 +473,7 @@ amdsmi_status_t amdsmi_get_gpu_vbios_info(amdsmi_processor_handle handle,
     return AMDSMI_STATUS_SUCCESS;
 }
 
-// amdsmi_get_gpu_board_info — returns board info.
+// amdsmi_get_gpu_board_info: returns board info.
 typedef struct {
     char model_number[128];
     char product_serial[64];

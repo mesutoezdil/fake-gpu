@@ -65,7 +65,7 @@ for artifact in fake-gpu amd-gpu-dra-driver amd-mock-kind-node; do
     manifest="$IMAGE_REGISTRY/$artifact:$tag"
     "$RUNTIME" manifest rm "$manifest" >/dev/null 2>&1 || true
     "$RUNTIME" manifest create "$manifest"
-    for arch in amd64 arm64; do "$RUNTIME" manifest add "$manifest" "$manifest-$arch"; done
+    for arch in amd64 arm64; do "$RUNTIME" manifest add "$manifest" "containers-storage:$manifest-$arch"; done
     if $PUSH; then "$RUNTIME" manifest push --all "$manifest" "docker://$manifest"; fi
 done
 helm lint "$REPO_ROOT/deployments/helm/fake-gpu"

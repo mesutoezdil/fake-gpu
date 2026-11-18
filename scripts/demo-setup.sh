@@ -2,7 +2,7 @@
 # fake-gpu: One-command demo setup
 #
 # Deploys the complete AMD GPU mock stack + LLM demo on a local cluster.
-# Uses the published OCI Helm chart — no build required.
+# Uses the published OCI Helm chart: no build required.
 # Works on macOS (Podman) and Linux (Docker).
 #
 # Usage:
@@ -43,7 +43,7 @@ else
 fi
 
 echo "============================================"
-echo "  Fake GPU — Demo Setup"
+echo "  Fake GPU: Demo Setup"
 echo "  Runtime: $RUNTIME"
 echo "  Profile: $GPU_PROFILE"
 echo "  Cluster: $CLUSTER_NAME"

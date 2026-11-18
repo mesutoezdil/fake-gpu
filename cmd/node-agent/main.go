@@ -223,7 +223,7 @@ func createDeviceNodes(profile *kfd.Profile, rootDir string) error {
 		devDir = rootDir + "/dev"
 	}
 
-	// /dev/kfd — major 234 (common), minor 0
+	// /dev/kfd: major 234 (common), minor 0
 	kfdPath := devDir + "/kfd"
 	if err := os.MkdirAll(filepath.Dir(kfdPath), 0o755); err != nil {
 		return err
@@ -234,8 +234,8 @@ func createDeviceNodes(profile *kfd.Profile, rootDir string) error {
 	}
 	log.Printf("created %s (234:0)", kfdPath)
 
-	// /dev/dri/renderDN — major 226, minor 128+N
-	// /dev/dri/cardN — major 226, minor N (device plugin exposes both)
+	// /dev/dri/renderDN: major 226, minor 128+N
+	// /dev/dri/cardN: major 226, minor N (device plugin exposes both)
 	driDir := devDir + "/dri"
 	if err := os.MkdirAll(driDir, 0o755); err != nil {
 		return err

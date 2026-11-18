@@ -1,4 +1,4 @@
-# Tiny LLM Demo — simulates a GPU AI workload on the AMD mock cluster.
+# Tiny LLM Demo: simulates a GPU AI workload on the AMD mock cluster.
 #
 # Requests amd.com/gpu: 1 to prove Kubernetes scheduling works.
 # Inference output is scripted; no model is downloaded or executed.
@@ -34,7 +34,7 @@ spec:
           import time, os, json
 
           print("=" * 60)
-          print("  Fake GPU — LLM Inference Demo")
+          print("  Fake GPU: LLM Inference Demo")
           print("=" * 60)
           print()
           print(f"Pod scheduled on node with amd.com/gpu resources.")

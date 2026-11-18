@@ -1,4 +1,4 @@
-// Mock AMD SMI types — matches the real amdsmi.h type definitions.
+// Mock AMD SMI types: matches the real amdsmi.h type definitions.
 // Only the types needed for the 15 functions amd-smi calls.
 // Source: ROCm/amdsmi amdsmi.h
 
@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// Status codes — same values as real AMD SMI
+// Status codes: same values as real AMD SMI
 typedef enum {
     AMDSMI_STATUS_SUCCESS = 0,
     AMDSMI_STATUS_INVAL = 1,
@@ -27,7 +27,7 @@ typedef enum {
     AMDSMI_INIT_NON_AMD_CPUS = 0x8,
 } amdsmi_init_flags_t;
 
-// Processor handle — opaque pointer
+// Processor handle: opaque pointer
 typedef void* amdsmi_processor_handle;
 typedef void* amdsmi_socket_handle;
 

@@ -102,13 +102,13 @@ cp profiles/mi300x.yaml profiles/my-custom.yaml
 ```
 
 Key fields to change for a new GPU model:
-- `device_defaults.name` — GPU name
-- `device_defaults.device_id` — PCI device ID
-- `device_defaults.gfx_target_version` — GFX ISA
-- `device_defaults.compute.*` — CU count, SIMD, XCC
-- `device_defaults.memory.vram_size_bytes` — VRAM
-- `xgmi.*` — interconnect topology
-- `devices` — per-GPU BDFs and render minors
+- `device_defaults.name`: GPU name
+- `device_defaults.device_id`: PCI device ID
+- `device_defaults.gfx_target_version`: GFX ISA
+- `device_defaults.compute.*`: CU count, SIMD, XCC
+- `device_defaults.memory.vram_size_bytes`: VRAM
+- `xgmi.*`: interconnect topology
+- `devices`: per-GPU BDFs and render minors
 
 ## Capturing a profile
 

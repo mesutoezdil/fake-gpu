@@ -5,7 +5,7 @@ per-partition exporter attribution is outside the
 [same-GPU allocation proof](../partition-allocation/README.md).
 
 Grafana starts with the demo setup at http://localhost:3000, with the dashboard
-**AMD GPU Fleet — Device Metrics Exporter** already provisioned.
+**AMD GPU Fleet: Device Metrics Exporter** already provisioned.
 
 ```bash
 python3 demo/run.py llm

@@ -38,7 +38,7 @@ kernelLog:
 
 nri:
   # NRI injects GPU visibility into pods that don't request amd.com/gpu.
-  # Not needed for standard GPU scheduling — only for monitoring/debugging pods.
+  # Not needed for standard GPU scheduling: only for monitoring/debugging pods.
   enabled: false
 
 prometheus:

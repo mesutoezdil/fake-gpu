@@ -20,7 +20,7 @@ The default chart installs the real AMD exporter, Prometheus and Grafana.
 The shared kind configuration maps the mock dashboard to localhost:8080 and
 Grafana to localhost:3000. No port-forward or separate monitoring installation
 is required. Sign in to Grafana with `admin` / `amdmock` and open
-**AMD GPU Fleet — Device Metrics Exporter**. The dashboard refreshes every
+**AMD GPU Fleet: Device Metrics Exporter**. The dashboard refreshes every
 5 seconds. Exporter collection and Prometheus scraping add a short delay
 before dashboard actions appear in the graphs. Grafana requests 256 MiB and
 has a 1 GiB memory limit to support the live dashboard.

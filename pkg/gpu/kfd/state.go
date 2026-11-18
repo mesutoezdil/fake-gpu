@@ -145,7 +145,7 @@ func (f *FleetState) SwitchProfile(slug string) ([]GPUState, bool) {
 }
 
 // ServerTraySize returns GPUs per server tray based on the profile's architecture.
-// OAM models (MI300X, MI325X, MI350X, MI355X): always 8 — UBB baseboard is fixed.
+// OAM models (MI300X, MI325X, MI350X, MI355X): always 8: UBB baseboard is fixed.
 // APU (MI300A): always 4.
 // PCIe (MI210, MI250X): 4 in multi-server configs, 8 in single-server.
 func ServerTraySize(gpuCount int) int {
@@ -157,7 +157,7 @@ func ServerTraySize(gpuCount int) int {
 
 // ProfileAllowsSplit returns true if this profile's form factor supports
 // splitting into multiple server trays (PCIe cards can be in separate servers).
-// OAM baseboard models are always a single 8-GPU unit — can't be split.
+// OAM baseboard models are always a single 8-GPU unit: can't be split.
 func ProfileAllowsSplit(profileName string) bool {
 	oamModels := map[string]bool{
 		"AMD Instinct MI300X": true,

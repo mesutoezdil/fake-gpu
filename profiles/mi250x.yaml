@@ -14,7 +14,7 @@ device_defaults:
   device_id: 0x740c
   subsystem_vendor_id: 0x1002
   subsystem_device_id: 0x740c
-  gfx_target_version: 90010       # gfx90a — hex needed because 'a' in version
+  gfx_target_version: 90010       # gfx90a: hex needed because 'a' in version
   architecture: "cdna2"
 
   compute:

@@ -1,9 +1,9 @@
-# RVS (ROCm Validation Suite) — Phase 6 validation against the mock cluster.
+# RVS (ROCm Validation Suite): Phase 6 validation against the mock cluster.
 #
 # Runs AMD's own GPU validation tools against our mock infrastructure.
-# Detection modules (gpup, peqt, rcqt) should pass — they read sysfs and
+# Detection modules (gpup, peqt, rcqt) should pass: they read sysfs and
 # /dev/kfd, which our mock provides. Compute modules (gst, mem, babel) are
-# expected to fail — we simulate the control plane, not the data plane.
+# expected to fail: we simulate the control plane, not the data plane.
 #
 # Image: rocm/dev-ubuntu-24.04 ships RVS at /opt/rocm/bin/rvs.
 # Devices: /dev/kfd and /dev/dri from our mock (staged on the host by

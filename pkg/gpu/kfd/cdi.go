@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// CDI spec structure — matches the Container Device Interface specification
+// CDI spec structure: matches the Container Device Interface specification
 // and the format that AMD's amd-ctk (ROCm/container-toolkit) generates.
 
 type CDISpec struct {
@@ -44,7 +44,7 @@ func GenerateCDISpec(profile *Profile, mockRoot string) *CDISpec {
 
 	kfdHostPath := filepath.Join(mockRoot, "dev/kfd")
 
-	// "all" device — includes every render node on the node.
+	// "all" device: includes every render node on the node.
 	allDevice := CDIDevice{
 		Name: "all",
 		ContainerEdits: CDIContEdits{

@@ -4,8 +4,8 @@
 #
 # Creates tmpfs-backed directories and bind-mounts them into /sys
 # so the AMD GPU Operator's init containers find:
-#   /sys/class/kfd        — KFD class directory
-#   /sys/module/amdgpu    — amdgpu kernel module
+#   /sys/class/kfd       : KFD class directory
+#   /sys/module/amdgpu   : amdgpu kernel module
 
 set -e
 

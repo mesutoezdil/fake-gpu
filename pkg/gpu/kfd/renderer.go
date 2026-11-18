@@ -81,7 +81,7 @@ func NewRenderer(profile *Profile, rootDir string) *Renderer {
 }
 
 // SwitchProfile cleans the old sysfs surfaces, loads a new profile, and
-// re-renders the sysfs tree. Device nodes are not recreated — they don't
+// re-renders the sysfs tree. Device nodes are not recreated: they don't
 // change between profiles (same /dev/kfd and /dev/dri/renderD* paths).
 func (r *Renderer) SwitchProfile(profile *Profile) error {
 	if err := clearDirectory(filepath.Join(r.rootDir, "sys")); err != nil {
@@ -125,7 +125,7 @@ func (r *Renderer) UpdateGPUSysfs(gpu *GPUState) error {
 	topoDir := filepath.Join(r.rootDir, "sys/class/kfd/kfd/topology")
 	nodeDir := filepath.Join(topoDir, fmt.Sprintf("nodes/%d", nodeIdx))
 
-	// Update the RAS/ECC status file — consumers check this for GPU health.
+	// Update the RAS/ECC status file: consumers check this for GPU health.
 	rasDir := filepath.Join(nodeDir, "ras")
 	if gpu.Status == "crashed" || gpu.ECCErrors > 0 {
 		if err := writeFile(filepath.Join(rasDir, "fatal_error"), "1\n"); err != nil {
@@ -427,7 +427,7 @@ func (r *Renderer) renderGPUNode(dir string, dev *DeviceConfig) error {
 		return err
 	}
 
-	// io_links — one PCIe link to CPU, then xGMI links to peer GPUs
+	// io_links: one PCIe link to CPU, then xGMI links to peer GPUs
 	linkIdx := 0
 	pcieLinkProps := []string{
 		fmt.Sprintf("type %d", 2), // PCIe
@@ -568,7 +568,7 @@ func (r *Renderer) renderDeviceNodes() error {
 	}
 	devDir := filepath.Join(r.rootDir, "dev")
 
-	// /dev/kfd — KFD compute interface (one per system)
+	// /dev/kfd: KFD compute interface (one per system)
 	kfdPath := filepath.Join(devDir, "kfd")
 	if err := os.MkdirAll(filepath.Dir(kfdPath), 0o755); err != nil {
 		return err
@@ -579,7 +579,7 @@ func (r *Renderer) renderDeviceNodes() error {
 		return err
 	}
 
-	// /dev/dri/renderDN — one per GPU
+	// /dev/dri/renderDN: one per GPU
 	driDir := filepath.Join(devDir, "dri")
 	for _, dev := range r.profile.Devices {
 		renderPath := filepath.Join(driDir, fmt.Sprintf("renderD%d", dev.DRMRenderMinor))

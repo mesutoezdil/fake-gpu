@@ -1,4 +1,4 @@
-# AMD K8s Device Plugin — Mock Configuration
+# AMD K8s Device Plugin: Mock Configuration
 #
 # Modified from the upstream ROCm/k8s-device-plugin DaemonSet to read
 # the mock sysfs tree at /var/lib/fake-gpu/sys instead of the real /sys,
@@ -43,7 +43,7 @@ spec:
 
             # Mock sysfs tree mounted at /sys inside the container.
             # The plugin reads /sys/module/amdgpu/drivers/...,
-            # /sys/class/drm/, and /sys/class/kfd/ — all of which
+            # /sys/class/drm/, and /sys/class/kfd/: all of which
             # exist in our mock tree.
             - name: sys
               mountPath: /sys

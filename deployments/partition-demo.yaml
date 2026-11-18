@@ -108,7 +108,7 @@ spec:
           print("User: What is AMD MI300X?")
           time.sleep(0.5)
           print("Bot: The MI300X is AMD's data center GPU with 192GB HBM3,")
-          print("     304 compute units, and 8 XCDs — each XCD can be a")
+          print("     304 compute units, and 8 XCDs: each XCD can be a")
           print("     separate compute partition for independent workloads.")
           print()
           print(f"Chatbot running on physical GPU {gpu_id}. Waiting for requests...")
