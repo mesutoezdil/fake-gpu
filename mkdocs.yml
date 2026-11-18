@@ -53,7 +53,6 @@ nav:
       - Reference:
           - GPU profiles: docs/profiles.md
           - Simulation depth by area: docs/simulation-depth.md
-          - Prepared worker image: artifacts/ernic-worker/README.md
       - Troubleshooting: docs/site/troubleshooting.md
   - Guides:
       - Overview: docs/site/scenarios.md
@@ -66,9 +65,7 @@ nav:
           - DRA allocation: demo/dra/README.md
           - Multiple GPUs: demo/multi-gpu/README.md
           - Same-GPU partition allocation: demo/partition-allocation/README.md
-          - GPU and NIC worker: demo/gpu-network/single-node/README.md
           - Spur batch scheduling: demo/spur/README.md
-          - Two-worker RDMA: demo/gpu-network/two-node/README.md
       - Tasks:
           - Allocation and release: demo/allocation/README.md
           - Failure injection: demo/faults/README.md
@@ -79,7 +76,6 @@ nav:
           - Presenter guide: demo/README.md
           - Partition architecture: docs/guides/partition-allocation.md
           - Telemetry architecture: docs/guides/telemetry.md
-          - GPU and network setup: docs/guides/gpu-network.md
   - Contributing:
       - Testing: docs/guides/testing.md
       - Documentation site: docs/site/maintaining.md

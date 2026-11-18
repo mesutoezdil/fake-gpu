@@ -19,7 +19,7 @@ def stage():
         shutil.rmtree(STAGE)
     STAGE.mkdir(parents=True)
     sources = [ROOT / 'README.md']
-    for directory in ('docs', 'demo', 'artifacts'):
+    for directory in ('docs', 'demo'):
         sources.extend(p for p in (ROOT / directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts and not p.name.startswith('.'))
     markdown = {p.resolve() for p in sources if p.suffix == '.md'}
     for source in sources:

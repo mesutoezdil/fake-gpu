@@ -213,30 +213,6 @@ endpoint requires controller-signed credentials. No HIP computation, DRA
 allocation, distributed workload or RocJITsu backend is asserted. See the
 [Spur demo](../../demo/spur/README.md).
 
-## Two-worker GPU/NIC and RDMA validation
-
-After the [two-worker setup](../../demo/gpu-network/two-node/README.md), run:
-
-```bash
-./demo/gpu-network/two-node/run.sh
-./demo/gpu-network/two-node/reboot-check.sh  # interrupts both dedicated guests
-```
-
-The runner waits for node and allocator readiness, then creates two distinctly
-named Pods in `amd-demo-rdma`. Each requests one DRA GPU and one device-plugin
-NIC. Allocation checks match claim/device identities and NIC PCI metadata to
-the container, and query the scripted Tiny LLM HTTP endpoint. Next, randomized
-64 KiB CPU buffers traverse SEND/RECV and RDMA WRITE WITH IMMEDIATE. Both peers
-must report successful completions and matching SHA-256 digests. A deliberate
-receiver corruption must produce a checksum mismatch; an unrelated process
-failure cannot satisfy that negative check. The reboot check requires new guest
-boot IDs before repeating the same suite.
-
-See the [numbered execution diagram](../../demo/gpu-network/two-node/README.md#architecture-and-sequence).
-This optional ARM64/Podman integration is run
-locally; it is not part of the hosted Kind-only CI matrix. It does not validate
-GPU-memory DMA, real inference or physical RDMA bandwidth.
-
 ## Optional CUSE/library backend
 
 See the [driver backend guide](driver-mock.md) for native device-open/libdrm

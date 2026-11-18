@@ -197,10 +197,6 @@ after releasing its demo claims, remove the dedicated cluster directly with
 `KUBECONFIG=/tmp/partition-demo.kubeconfig kind delete cluster --name amd-partition-demo`.
 Do not change a live cluster's partition mode while claims exist.
 
-## GPU and network worker
-
-The [single-node GPU/network demo](gpu-network/single-node/README.md) adds a dedicated ERNIC VM worker and allocates a DRA GPU and NIC to one application. This optional demo needs the VM setup described there. The [two-node transfer demo](gpu-network/two-node/README.md) allocates a GPU and NIC on each worker in one `amd-demo-rdma` namespace, transfers randomized CPU buffers through ERNIC, and checks both correct payloads and corruption rejection. Its numbered architecture explains when discovery, allocation, container access and transfer occur; the runner dumps the evidence and leaves both Pods running.
-
 ## Spur batch scheduling
 
 [Spur demo](spur/README.md) creates a separate device-plugin cluster and uses

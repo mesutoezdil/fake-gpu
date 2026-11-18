@@ -1,10 +1,10 @@
 name: docs-site
 on:
   pull_request:
-    paths: ['docs/**', 'demo/**', 'artifacts/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
+    paths: ['docs/**', 'demo/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
   push:
     branches: [main]
-    paths: ['docs/**', 'demo/**', 'artifacts/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
+    paths: ['docs/**', 'demo/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
   workflow_dispatch:
 permissions:
   contents: read

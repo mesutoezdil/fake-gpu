@@ -289,22 +289,3 @@ See [the partition architecture and responsibility table](guides/partition-alloc
 for the ASCII path, lifecycle, and verified boundaries. This startup topology
 is separate from the virtual dashboard API transitions described above.
 
-## Optional two-worker GPU and network path
-
-```text
-[1] Kind API/scheduler + GPU chart
- -> [2] Two ERNIC/QEMU workers join
- -> [3] AMD DRA publishes GPUs; Network Operator/NIC plugin advertises NICs
- -> [4] Two Pods in amd-demo-rdma request one GPU and one NIC each
- -> [5] Scheduler + kubelet/DRA + NIC plugin + containerd expose devices
- -> [6] Pods exchange queue-pair metadata over TCP
- -> [7] Verbs SEND/RECV and RDMA WRITE transfer CPU buffers through ERNIC mesh
- -> [8] SHA-256 checks prove delivery and reject intentional corruption
-```
-
-Each worker has its own emulated PCI NIC and GPU mock interfaces. GPU and NIC
-allocation remain separate; the GPU is not in the CPU-buffer transfer path.
-See the [GPU/network guide](guides/gpu-network.md#two-worker-allocation-and-transfer)
-for the expanded diagram and the [two-worker demo](../demo/gpu-network/two-node/README.md)
-for setup and cleanup. The single-node variant proves
-allocation and HTTP access only.

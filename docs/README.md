@@ -20,8 +20,6 @@ behavior, validation and limits.
 | [Same-GPU partition allocation](guides/partition-allocation.md) | Fixed MI300X DPX/NPS2, two containers sharing a physical parent, each layer's responsibilities |
 | [Device plugin](guides/device-plugin.md) | Alternative whole-GPU allocator setup |
 | [Telemetry](guides/telemetry.md) | Mock AMD SMI, real exporter, Prometheus and Grafana |
-| [GPU/network worker](guides/gpu-network.md) | Prepared ERNIC VM worker, real operator NIC discovery and DRA GPU allocation |
-| [Prepared worker artifact](../artifacts/ernic-worker/README.md) | Image contents, pinned inputs, rebuilding and validation |
 | [Spur scheduling](../demo/spur/README.md) | Unchanged upstream batch scheduler, queueing, GPU injection, completion and release |
 | [Testing](guides/testing.md) | Local contracts and complete CI suites |
 | [Demo room](../demo/README.md) | Presentations, commands and cleanup |
@@ -31,6 +29,3 @@ a separate fresh startup configuration and provides the ninth, same-GPU
 partition-allocation presentation. Virtual dashboard partition changes do not
 create schedulable slices.
 
-The optional GPU/network presentation adds a prepared VM worker to Kind. Its
-single-node allocation demo is validated; the two-node RDMA transfer demo is
-planned separately.

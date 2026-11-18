@@ -17,7 +17,6 @@ the quick start's port mappings.
 | Device plugin | Whole-GPU allocation through `amd.com/gpu` |
 | Telemetry and faults | Dashboard state flowing through mock AMD SMI, the real exporter, Prometheus and Grafana |
 | Spur batch scheduling | Unchanged upstream queueing, device-plugin GPU allocation, completion and reuse |
-| GPU and NIC worker | One application receiving a DRA GPU and an AMD Network Operator NIC |
 
 The GPU mock does not execute HIP kernels, implement DMA, or establish hardware
 memory isolation or performance. The Tiny LLM presentation demonstrates application
@@ -34,8 +33,6 @@ allocation, device injection and telemetry. Each demo explains its assertions.
 The default setup uses Kubernetes 1.37 and DRA. Device-plugin allocation is an
 alternative installation mode; the two allocators must not hand out the same
 GPU pool simultaneously. Schedulable partitioning uses a fixed startup topology.
-The optional two-worker RDMA demo validates CPU-buffer payload transfer alongside
-GPU/NIC allocation. It does not provide GPU-memory DMA.
 
 See [testing](../guides/testing.md) for executable checks and validation limits.
 This project was inspired by [NVIDIA Mokka](https://github.com/NVIDIA/k8s-test-infra).

@@ -17,5 +17,3 @@ Install the [quick start](getting-started.md) first. Use the
 | [Fault injection](../../demo/faults/README.md) | Default | ECC, overheating and recovery visibility |
 | [Telemetry](../../demo/telemetry/README.md) | Default | Real exporter, Prometheus and Grafana |
 | [Spur batch scheduling](../../demo/spur/README.md) | Separate device-plugin cluster | Queueing, device injection, completion and release |
-| [GPU + NIC](../../demo/gpu-network/single-node/README.md) | Optional prepared ERNIC worker | Real GPU and NIC allocation paths for one application |
-| [Two-worker RDMA](../../demo/gpu-network/two-node/README.md) | Two prepared ARM64 ERNIC workers | GPU/NIC allocation, CPU-buffer RDMA, checksums and corruption rejection |

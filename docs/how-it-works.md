@@ -104,13 +104,3 @@ The [demo folder](../demo/README.md) provides presenter commands and a shared
 configuration for both dashboard ports and enable switches. The default
 Grafana host port is 3000; both dashboards work without port-forwards.
 
-## Optional GPU and network workers
-
-The [GPU/network architecture](guides/gpu-network.md#two-worker-allocation-and-transfer)
-extends Kind with QEMU workers, each with ERNIC-emulated PCI networking and
-mock GPU interfaces. Its numbered sequence distinguishes discovery, resource
-advertisement, scheduling, kubelet device preparation and transfer. The
-[two-worker demo](../demo/gpu-network/two-node/README.md) uses one namespace and
-separate Pod names, verifies each GPU/NIC allocation, then exchanges CPU-buffer
-RDMA payloads with checksums. Mock GPU allocation does not provide GPU memory
-for those transfers.
