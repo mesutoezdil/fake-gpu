@@ -1,26 +1,7 @@
+# containerd of the mock kind node: kind's defaults, plus CDI for device
+# injection, NRI for the optional plugin, and AMD's container runtime as the
+# runc binary so it can resolve amd.com/gpu devices.
 version = 2
-
-[proxy_plugins]
-[proxy_plugins."fuse-overlayfs"]
-  type = "snapshot"
-  address = "/run/containerd-fuse-overlayfs.sock"
-
-[plugins."io.containerd.grpc.v1.cri".containerd]
-  discard_unpacked_layers = true
-  snapshotter = "overlayfs"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-  runtime_type = "io.containerd.runc.v2"
-  base_runtime_spec = "/etc/containerd/cri-base.json"
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-    SystemdCgroup = true
-    BinaryName = "/usr/bin/amd-container-runtime"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.test-handler]
-  runtime_type = "io.containerd.runc.v2"
-  base_runtime_spec = "/etc/containerd/cri-base.json"
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.test-handler.options]
-    SystemdCgroup = true
 
 [plugins."io.containerd.grpc.v1.cri"]
   enable_cdi = true
@@ -28,7 +9,33 @@ version = 2
   tolerate_missing_hugepages_controller = true
   restrict_oom_score_adj = false
 
+[plugins."io.containerd.grpc.v1.cri".containerd]
+  snapshotter = "overlayfs"
+  discard_unpacked_layers = true
+
+# Every pod runs through amd-container-runtime, which wraps runc.
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+  runtime_type = "io.containerd.runc.v2"
+  base_runtime_spec = "/etc/containerd/cri-base.json"
+
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+    BinaryName = "/usr/bin/amd-container-runtime"
+    SystemdCgroup = true
+
+# kind's e2e handler, plain runc.
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.test-handler]
+  runtime_type = "io.containerd.runc.v2"
+  base_runtime_spec = "/etc/containerd/cri-base.json"
+
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.test-handler.options]
+    SystemdCgroup = true
+
 [plugins."io.containerd.nri.v1.nri"]
   disable = false
   disable_connections = false
   socket_path = "/var/run/nri/nri.sock"
+
+# kind ships fuse-overlayfs for rootless hosts.
+[proxy_plugins."fuse-overlayfs"]
+  type = "snapshot"
+  address = "/run/containerd-fuse-overlayfs.sock"

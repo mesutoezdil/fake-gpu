@@ -1,18 +1,11 @@
+# kind node for the mock: kind's image plus AMD's container runtime and CDI
+# toolkit (built by scripts/build-images.sh), wired into containerd.
 ARG BASE_IMAGE=docker.io/kindest/node:v1.37.0
 FROM ${BASE_IMAGE}
 
-# Install AMD Container Runtime and CDI toolkit (pre-compiled)
-COPY bin/amd-container-runtime /usr/bin/amd-container-runtime
-COPY bin/amd-ctk /usr/bin/amd-ctk
-RUN chmod +x /usr/bin/amd-container-runtime /usr/bin/amd-ctk
-
-# Containerd config: CDI enabled + AMD runtime as default runc handler
+COPY bin/amd-container-runtime bin/amd-ctk /usr/bin/
 COPY containerd-config.toml /etc/containerd/config.toml
-
-# AMD container runtime config: CDI mode
 COPY amd-container-runtime.toml /etc/amd-container-runtime/config.toml
-
-# CDI spec directories
-RUN mkdir -p /etc/cdi /var/run/cdi
-
 COPY TOOLKIT-LICENSE /licenses/AMD-CONTAINER-TOOLKIT-LICENSE
+# The node agent writes its CDI specs into both directories.
+RUN chmod 0755 /usr/bin/amd-container-runtime /usr/bin/amd-ctk && mkdir -p /etc/cdi /var/run/cdi

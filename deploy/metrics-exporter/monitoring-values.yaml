@@ -1,31 +1,25 @@
-# GPU telemetry stack; unrelated host/cluster collectors are optional.
-alertmanager:
-  enabled: false
-nodeExporter:
-  enabled: false
-kubeStateMetrics:
-  enabled: false
-defaultRules:
-  create: false
-prometheusOperator:
-  image:
-    registry: ghcr.io
-    repository: prometheus-operator/prometheus-operator
-  prometheusConfigReloader:
-    image:
-      registry: ghcr.io
-      repository: prometheus-operator/prometheus-config-reloader
+# kube-prometheus-stack values for an external stack that only collects GPU
+# telemetry: Prometheus and Grafana, nothing that watches the host or the
+# cluster. Images come from registries that need no login.
+
 prometheus:
   prometheusSpec:
+    image: {registry: docker.io, repository: prom/prometheus, tag: v3.15.0-distroless}
+    # Pick up the exporter's ServiceMonitor without a release label.
     serviceMonitorSelectorNilUsesHelmValues: false
-    image:
-      registry: docker.io
-      repository: prom/prometheus
-      tag: v3.15.0-distroless
+
+prometheusOperator:
+  image: {registry: ghcr.io, repository: prometheus-operator/prometheus-operator}
+  prometheusConfigReloader:
+    image: {registry: ghcr.io, repository: prometheus-operator/prometheus-config-reloader}
+
 grafana:
   sidecar:
-    image:
-      registry: docker.io
-      repository: kiwigrid/k8s-sidecar
-    dashboards:
-      searchNamespace: ALL
+    image: {registry: docker.io, repository: kiwigrid/k8s-sidecar}
+    # scripts/dashboard-configmap.sh can put the dashboard in any namespace.
+    dashboards: {searchNamespace: ALL}
+
+alertmanager: {enabled: false}
+nodeExporter: {enabled: false}
+kubeStateMetrics: {enabled: false}
+defaultRules: {create: false}

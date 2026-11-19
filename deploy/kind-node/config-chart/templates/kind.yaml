@@ -1,23 +1,21 @@
-{{- if and .Values.dashboard.enabled .Values.monitoring.enabled .Values.monitoring.grafana.enabled (eq (int .Values.kind.mockDashboardPort) (int .Values.kind.grafanaPort)) }}
-{{- fail "mock dashboard and Grafana host ports must differ" }}
-{{- end }}
+{{- /* kind cluster config for the demo: host ports for the dashboard and
+Grafana, and the node labels the mock and AMD's operator select on. */ -}}
+{{- $dashboard := include "kind.dashboard" . -}}
+{{- $grafana := include "kind.grafana" . -}}
+{{- if and $dashboard $grafana (eq (int .Values.kind.mockDashboardPort) (int .Values.kind.grafanaPort)) -}}
+{{- fail "mock dashboard and Grafana host ports must differ" -}}
+{{- end -}}
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
   - role: control-plane
-    {{- if or .Values.dashboard.enabled (and .Values.monitoring.enabled .Values.monitoring.grafana.enabled) }}
+    {{- if or $dashboard $grafana }}
     extraPortMappings:
-      {{- if .Values.dashboard.enabled }}
-      - containerPort: {{ .Values.dashboard.nodePort }}
-        hostPort: {{ .Values.kind.mockDashboardPort }}
-        listenAddress: "127.0.0.1"
-        protocol: TCP
+      {{- if $dashboard }}
+      {{- include "kind.port" (dict "node" .Values.dashboard.nodePort "host" .Values.kind.mockDashboardPort) | nindent 6 }}
       {{- end }}
-      {{- if and .Values.monitoring.enabled .Values.monitoring.grafana.enabled }}
-      - containerPort: {{ .Values.monitoring.grafana.nodePort }}
-        hostPort: {{ .Values.kind.grafanaPort }}
-        listenAddress: "127.0.0.1"
-        protocol: TCP
+      {{- if $grafana }}
+      {{- include "kind.port" (dict "node" .Values.monitoring.grafana.nodePort "host" .Values.kind.grafanaPort) | nindent 6 }}
       {{- end }}
     {{- end }}
     labels:

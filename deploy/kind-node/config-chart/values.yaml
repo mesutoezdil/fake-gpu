@@ -1,3 +1,5 @@
+# The subset of the fake-gpu chart's values that decides host ports. The
+# demo passes the same file to both charts, so ports and toggles agree.
 kind:
   mockDashboardPort: 8080
   grafanaPort: 3000
