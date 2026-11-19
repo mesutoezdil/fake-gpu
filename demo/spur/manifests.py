@@ -37,7 +37,8 @@ def service(name, ports):
 
 def deployment(name, args, ready_port, pod):
     container = {'name': name, 'image': IMAGE, 'command': [name], 'args': args,
-                 'resources': {'requests': {'cpu': '100m', 'memory': '128Mi'}, 'limits': {'memory': '512Mi'}},
+                 # Small CPU requests: the demo's one job asks for a whole CPU on a 2-CPU kind node.
+                 'resources': {'requests': {'cpu': '10m', 'memory': '128Mi'}, 'limits': {'memory': '512Mi'}},
                  'readinessProbe': {'tcpSocket': {'port': ready_port}, 'initialDelaySeconds': 3, 'periodSeconds': 5}}
     container.update(pod.pop('container', {}))
     spec = {'containers': [container], 'securityContext': {'fsGroup': 1001}, 'tolerations': [{'operator': 'Exists'}], **pod}
