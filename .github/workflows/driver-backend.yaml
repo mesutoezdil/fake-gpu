@@ -6,6 +6,9 @@ on:
     paths: ['pkg/mockdriver/**', 'pkg/gpu/kfd/**', 'cmd/node-agent/**', 'pkg/mocksmi/**', 'deploy/driver-mock/**', 'charts/**', 'test/e2e/driver/**', 'test/e2e/profile/**', 'test/chart/**', 'test/lib/**', '.github/workflows/driver-backend.yaml']
   pull_request:
     paths: ['pkg/mockdriver/**', 'pkg/gpu/kfd/**', 'cmd/node-agent/**', 'deploy/driver-mock/**', 'charts/**', 'test/e2e/driver/**', 'test/e2e/profile/**', 'test/chart/**', 'test/lib/**', '.github/workflows/driver-backend.yaml']
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   packages: read

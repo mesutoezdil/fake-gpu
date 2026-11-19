@@ -1,11 +1,15 @@
-# Go tests and the single-machine Docker mode. No cluster, so it runs on every PR.
+# Go tests and the single-machine Docker mode. No cluster, so it runs on
+# every PR that touches code.
 name: unit-and-docker
 
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', 'mkdocs.yml', 'scripts/docs/**', 'LICENSE', 'LICENSES/**', 'NOTICE', '.github/workflows/docs-site.yaml']
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

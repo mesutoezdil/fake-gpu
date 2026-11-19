@@ -1,9 +1,11 @@
 name: demo-e2e
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', 'mkdocs.yml', 'scripts/docs/**', 'LICENSE', 'LICENSES/**', 'NOTICE', '.github/workflows/docs-site.yaml']
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   packages: read

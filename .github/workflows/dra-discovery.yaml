@@ -1,12 +1,16 @@
 # Runs AMD's DRA driver discovery code against every GPU profile.
-# Fast (no cluster), so it runs on every PR. The full kind test is
-# test/e2e/dra/run.sh.
+# Fast (no cluster), so it runs on every PR that touches code. The full
+# kind test is test/e2e/dra/run.sh.
 name: dra-discovery
 
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md', 'mkdocs.yml', 'scripts/docs/**', 'LICENSE', 'LICENSES/**', 'NOTICE', '.github/workflows/docs-site.yaml']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
