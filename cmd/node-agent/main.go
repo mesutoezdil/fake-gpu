@@ -154,11 +154,7 @@ func main() {
 		}
 	}
 
-	// Derive the profile slug from the config filename (e.g. "mi300x" from ".../mi300x.yaml").
-	initialSlug := strings.TrimSuffix(filepath.Base(*configPath), filepath.Ext(*configPath))
-	if initialSlug == "config" {
-		initialSlug = "mi300x"
-	}
+	initialSlug := profileSlug(*configPath)
 
 	// Start the API server for the dashboard and runtime control.
 	state := kfd.NewFleetState(&profile, initialSlug)
@@ -232,6 +228,17 @@ func main() {
 	if backendErr != nil {
 		os.Exit(1)
 	}
+}
+
+// profileSlug derives the profile slug from the config filename, e.g. "mi300x"
+// from ".../mi300x.yaml". Helm mounts every profile as config.yaml; that name
+// starts as mi300x until the catalog lookup binds the real slug.
+func profileSlug(configPath string) string {
+	slug := strings.TrimSuffix(filepath.Base(configPath), filepath.Ext(configPath))
+	if slug == "config" {
+		return "mi300x"
+	}
+	return slug
 }
 
 func createDeviceNodes(profile *kfd.Profile, rootDir string) error {
