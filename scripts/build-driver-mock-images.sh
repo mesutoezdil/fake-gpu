@@ -9,8 +9,8 @@ push=false
 if [ "${1:-}" = --push ]; then push=true; shift; fi
 [ "$#" = 0 ] || { echo "usage: $0 [--push]" >&2; exit 2; }
 if [ "$runtime" = docker ]; then
-  args=(--platform linux/amd64,linux/arm64 -f deployments/driver-mock/Dockerfile -t "$repository:$version")
-  $push && args+=(--push)
+  args=(--platform "linux/amd64,linux/arm64" -f deployments/driver-mock/Dockerfile -t "$repository:$version")
+  if $push; then args+=(--push); fi
   # Without --push, retain both platforms in the build cache.
   docker buildx build "${args[@]}" .
 else

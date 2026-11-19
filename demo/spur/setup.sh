@@ -8,7 +8,7 @@ mkdir -p "$(dirname "$KUBECONFIG")"
 command -v kind >/dev/null
 command -v helm >/dev/null
 command -v kubectl >/dev/null
-if ! kind get clusters | grep -Fxq "$CLUSTER"; then
+if ! grep -Fxq "$CLUSTER" <<< "$(kind get clusters 2>/dev/null)"; then
   kind create cluster --name "$CLUSTER" \
     --image ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0 \
     --config "$ROOT/demo/spur/kind.yaml" --kubeconfig "$KUBECONFIG"
