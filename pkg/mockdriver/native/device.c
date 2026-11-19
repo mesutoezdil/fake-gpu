@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 #define FUSE_USE_VERSION 31
 #include <cuse_lowlevel.h>
 #include <fuse_lowlevel.h>

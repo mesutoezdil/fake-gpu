@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 // Deliberate user-space ABI simulator. No DRM ioctl or compute implementation.
 #include <amdgpu.h>
 #include <amdgpu_drm.h>

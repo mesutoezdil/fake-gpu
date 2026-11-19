@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: AGPL-3.0-only
 // Package mockdriver supplies optional openable devices. It does not emulate
 // the AMD kernel driver: unsupported reads/writes/ioctls fail explicitly.
 package mockdriver
