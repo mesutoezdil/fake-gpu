@@ -5,7 +5,7 @@ Kubernetes nodes. Real Kubernetes components work against synthetic GPU discover
 and management interfaces.
 
 Start with the [quick start](getting-started.md), then
-[choose a demo](demos.md) or browse [Scenarios](scenarios.md). The mock dashboard and Grafana are available through
+[choose a demo](demos.md) or browse the [guides](guides/index.md). The mock dashboard and Grafana are available through
 the quick start's port mappings.
 
 ## What you can demonstrate
@@ -24,8 +24,8 @@ and allocation integration; it does not prove GPU inference.
 
 ## Understand the layers
 
-Read the [architecture diagrams](../architecture.md) and
-[mock interface responsibilities](../how-it-works.md) to follow discovery,
+Read the [architecture diagrams](reference/architecture.md) and
+[mock interface responsibilities](reference/how-it-works.md) to follow discovery,
 allocation, device injection and telemetry. Each demo explains its assertions.
 
 ## Current scope
@@ -34,5 +34,5 @@ The default setup uses Kubernetes 1.37 and DRA. Device-plugin allocation is an
 alternative installation mode; the two allocators must not hand out the same
 GPU pool simultaneously. Schedulable partitioning uses a fixed startup topology.
 
-See [testing](../guides/testing.md) for executable checks and validation limits.
+See [testing](contributing/testing.md) for executable checks and validation limits.
 This project was inspired by [NVIDIA Mokka](https://github.com/NVIDIA/k8s-test-infra).

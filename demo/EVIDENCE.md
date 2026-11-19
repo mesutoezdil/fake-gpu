@@ -55,7 +55,7 @@ contains unchanged AMD v1.5.2 GPU Agent/exporter binaries with a replacement
 AMD SMI device library. Image names alone do not establish binary provenance;
 see the pinned inputs and build recipe in the
 [telemetry guide](../docs/guides/telemetry.md) and
-[exporter image source](../deployments/metrics-exporter/). ARM64 explicitly
+[exporter image source](../deploy/metrics-exporter/). ARM64 explicitly
 emulates the x86 AMD collectors with QEMU.
 
 ## Allocation evidence, from host mock to container

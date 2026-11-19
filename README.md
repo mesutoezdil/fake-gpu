@@ -16,8 +16,8 @@ there is no HIP, no VRAM behind the numbers, no ioctl that does anything.
 ## One minute, no cluster
 
 ```bash
-docker compose -f deployments/docker/compose.yaml up -d --build
-alias fgpu='docker compose -f deployments/docker/compose.yaml exec fake-gpu'
+docker compose -f deploy/docker/compose.yaml up -d --build
+alias fgpu='docker compose -f deploy/docker/compose.yaml exec fake-gpu'
 
 fgpu fakegpuctl busy -gpu 0 util=95
 fgpu fakegpuctl busy -gpu 4 util=70
@@ -52,12 +52,12 @@ You need kind v0.33 or newer, kubectl, Helm and Docker.
 
 ```bash
 kind create cluster --name fake-gpu --image kindest/node:v1.37.0 \
-    --config deployments/kind-node/kind-config.yaml
+    --config deploy/kind-node/kind-config.yaml
 
 docker build -t fake-gpu:dev .
 kind load docker-image fake-gpu:dev --name fake-gpu
 
-helm install fake-gpu deployments/helm/fake-gpu -n amd-mock --create-namespace \
+helm install fake-gpu charts/fake-gpu -n amd-mock --create-namespace \
     --set image.repository=fake-gpu --set image.tag=dev --set image.pullPolicy=Never \
     --set dra.image.repository=docker.io/rocm/k8s-gpu-dra-driver --set dra.image.tag=v1.0.0 \
     --set monitoring.enabled=false --set metricsExporter.enabled=false
@@ -187,7 +187,7 @@ a training job shows up as GPU load in whatever is watching.
 ## Profiles
 
 `--set gpu.profile=<name>` picks the card. Profiles are YAML files in
-`profiles/`, described in [docs/profiles.md](docs/profiles.md).
+`profiles/`, described in [docs/profiles.md](docs/reference/profiles.md).
 
 | Profile | Card | Memory | TDP |
 |---|---|---|---|
@@ -234,20 +234,34 @@ sysfs attributes are read-only, so writing a power cap changes nothing. The
 `amd-smi` output is shaped like the real tool's but is not byte-compatible.
 Partition changes made through the dashboard are display state and do not
 change what Kubernetes can schedule.
-[Simulation depth by area](docs/simulation-depth.md) goes through every
+[Simulation depth by area](docs/reference/simulation-depth.md) goes through every
 surface and names the test that guards it.
+
+## Repository layout
+
+| Path | Contents |
+| --- | --- |
+| `cmd/`, `pkg/` | Go: node agent, `amd-smi`, `fakegpuctl`, NRI plugin, renderer, AMD SMI and HIP mocks |
+| `charts/fake-gpu/` | Helm chart, templates grouped by component (agent, device plugin, metrics exporter, monitoring) |
+| `deploy/` | Docker compose, kind node image, DRA driver image and filter, metrics exporter image, CUSE driver image, example workloads |
+| `profiles/` | GPU profiles shared by the image and the chart |
+| `test/` | `lib/` shared helpers, `chart/` render-only checks, `container/` Docker checks, `e2e/` cluster suites |
+| `docs/` | Guides, reference and contributor pages |
+| `demo/` | Presenter walkthroughs |
+| `scripts/` | Image and chart builds, docs site, link and chart snapshot checks |
 
 ## Tests
 
 ```bash
-go test ./...            # unit and contract tests
-tests/docker/run.sh      # the Docker mode above, end to end
+go test ./...                    # unit and contract tests
+test/chart/run.sh                # chart render contracts, needs only helm
+test/container/docker/run.sh     # the Docker mode above, end to end
 ```
 
-The cluster suites run AMD's device plugin and DRA driver against all seven
-profiles and AMD's exporter against the MI300X.
-[docs/guides/testing.md](docs/guides/testing.md) lists them with their
-prerequisites.
+The cluster suites under `test/e2e/` run AMD's device plugin and DRA driver
+against all seven profiles and AMD's exporter against the MI300X.
+[Testing](docs/contributing/testing.md) lists every check with its
+prerequisites and the CI workflow that runs it.
 
 ## License
 

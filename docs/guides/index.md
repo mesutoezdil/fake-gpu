@@ -1,14 +1,14 @@
-# Scenarios
+# Guides
 
 Choose a walkthrough for the component or workload you want to demonstrate.
 Each uses the real Kubernetes allocation path over mocked hardware interfaces.
 Run commands from the repository checkout; the linked demo pages include
 inspection commands and the boundaries of each proof.
 
-## Prerequisites
+## Requirements
 
 Install kind v0.33.0+, kubectl, Helm and Docker or Podman. Complete the
-[quick start](getting-started.md) for the default DRA scenarios. Device-plugin,
+[quick start](../getting-started.md) for the default DRA scenarios. Device-plugin,
 fixed-partition, GPU/network and Spur scenarios describe their additional setup.
 Keep different allocator configurations in separate clusters.
 

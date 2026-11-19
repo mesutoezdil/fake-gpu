@@ -16,9 +16,9 @@ A scheduled GPU pod proves allocation and device injection, not GPU execution.
    identifies the allocated device nodes.
 7. Containerd injects those nodes into the consumer. Deleting the consumer
    triggers unprepare and the allocation lifecycle described in the
-   [DRA guide](guides/dra.md).
+   [DRA guide](../guides/dra.md).
 
-The alternative [device-plugin path](guides/device-plugin.md) registers
+The alternative [device-plugin path](../guides/device-plugin.md) registers
 `amd.com/gpu` capacity and allocates physical GPUs to extended-resource requests.
 The allocators run separately to avoid independent allocation of one pool.
 
@@ -37,7 +37,7 @@ Its GPU values come directly from node-agent runtime state. Healthy readings
 vary each second. Overheat, Busy, Idle, Crash, Recover and ECC controls modify
 that state and synchronize mock sysfs and atomic per-GPU SMI snapshot files.
 
-The default chart [monitoring setup](guides/telemetry.md) installs the real AMD
+The default chart [monitoring setup](../guides/telemetry.md) installs the real AMD
 Device Metrics Exporter and GPU Agent. Their binaries remain unchanged. GPU
 Agent invokes a replacement AMD SMI device library that reads the snapshots;
 it returns values through AMD's official ABI 27 structures. The exporter
@@ -78,7 +78,7 @@ With `gpu.partition=DPX`, MI300X starts in DPX/NPS2 topology: two logical
 96-GiB devices per physical parent. AMD's unchanged DRA driver discovers
 sixteen partitions across eight parents. Kubernetes enforces the same-parent
 constraint and the runtime exposes each container's assigned render device.
-The [allocation guide](guides/partition-allocation.md) documents each layer's
+The [allocation guide](../guides/partition-allocation.md) documents each layer's
 responsibility and simulation boundaries. Runtime
 profile, tray and virtual partition changes are blocked in this startup mode.
 
@@ -90,17 +90,17 @@ profile, tray and virtual partition changes are blocked in this startup mode.
 | `pkg/gpu/kfd` | Sysfs/devices/CDI, runtime state, dashboard and atomic SMI bridge |
 | `pkg/mocksmi` | AMD SMI library built on AMD's own header, read by the collector and every other consumer |
 | `pkg/hipshim` | HIP device and memory calls on host memory |
-| `deployments/helm/fake-gpu` | Node agent, allocator selection and optional exporter |
-| `deployments/metrics-exporter` | Collector runtime, monitoring values and Grafana dashboard |
+| `charts/fake-gpu` | Node agent, allocator selection and optional exporter |
+| `deploy/metrics-exporter` | Collector runtime, monitoring values and Grafana dashboard |
 | `scripts/setup-monitoring.sh` | Optional external Prometheus Operator monitoring installation |
 | `scripts/build-telemetry-images.sh` | Reproducible maintainer build and publication |
-| `tests/telemetry` | ABI, dashboard actions, Grafana queries and consumer attribution |
+| `test/e2e/telemetry`, `test/container/smi_abi` | ABI, dashboard actions, Grafana queries and consumer attribution |
 
-The [testing guide](guides/testing.md) distinguishes validated contracts from
+The [testing guide](../contributing/testing.md) distinguishes validated contracts from
 unimplemented hardware behavior. The Tiny LLM demo produces scripted output;
 it downloads no model weights and runs no inference.
 
-The [demo folder](../demo/README.md) provides presenter commands and a shared
+The [demo folder](../../demo/README.md) provides presenter commands and a shared
 configuration for both dashboard ports and enable switches. The default
 Grafana host port is 3000; both dashboards work without port-forwards.
 

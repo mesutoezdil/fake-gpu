@@ -131,7 +131,7 @@ only inspect or change state and create no pods.
 
 Faults do not automatically revoke claims, evict pods or restart workloads.
 CPX entries are not independently schedulable hardware slices. Use the
-[ASCII architecture diagrams](../docs/architecture.md) to explain these boundaries.
+[ASCII architecture diagrams](../docs/reference/architecture.md) to explain these boundaries.
 
 ## Clean up
 
@@ -159,7 +159,7 @@ These versions are independent: changing chart configuration does not require
 rebuilding an unchanged node image. The build pins are in
 [`scripts/release.env`](../scripts/release.env). The setup uses those pins.
 
-See [demo validation](../docs/guides/testing.md#presenter-demos-and-default-dashboards)
+See [demo validation](../docs/contributing/testing.md#presenter-demos-and-default-dashboards)
 and [telemetry details](../docs/guides/telemetry.md) for tests and limitations.
 
 ## Same-GPU allocation presentation

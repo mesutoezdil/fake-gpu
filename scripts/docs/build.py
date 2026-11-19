@@ -14,47 +14,65 @@ SOURCE_URL = 'https://github.com/mesutoezdil/fake-gpu/blob/main/'
 LINK = re.compile(r'(!?\[[^\]]*\]\()([^\s)]+)([^)]*\))')
 
 
+# GitHub's index of docs/; the site has its own home page and navigation.
+EXCLUDED = {ROOT / 'docs/README.md'}
+
+
+def staged(path):
+    """Where a repository file lands in the staged site."""
+    if path == ROOT / 'README.md':
+        return STAGE / 'repository.md'
+    if path == ROOT / 'docs/index.md':
+        return STAGE / 'index.md'
+    return STAGE / path.relative_to(ROOT)
+
+
+def relink(text, source_dir, destination, staged_files):
+    """Rewrite relative links in text written at source_dir for destination.
+
+    Pages and images that are part of the site stay relative links; links to
+    other repository files point at GitHub, where they can be read.
+    """
+    def rewrite(match):
+        target = match[2]
+        parsed = urlsplit(target)
+        if parsed.scheme or parsed.netloc or target.startswith('#'):
+            return match[0]
+        resolved = (source_dir / unquote(parsed.path)).resolve()
+        fragment = '#' + parsed.fragment if parsed.fragment else ''
+        if resolved in staged_files:
+            relative = os.path.relpath(staged(resolved), destination.parent)
+            return match[1] + Path(relative).as_posix() + fragment + match[3]
+        try:
+            relative = resolved.relative_to(ROOT).as_posix()
+        except ValueError:
+            return match[0]
+        return match[1] + SOURCE_URL + relative + fragment + match[3]
+    return LINK.sub(rewrite, text)
+
+
 def stage():
     if STAGE.exists():
         shutil.rmtree(STAGE)
     STAGE.mkdir(parents=True)
     sources = [ROOT / 'README.md']
     for directory in ('docs', 'demo'):
-        sources.extend(p for p in (ROOT / directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts and not p.name.startswith('.'))
-    markdown = {p.resolve() for p in sources if p.suffix == '.md'}
+        sources.extend(p for p in (ROOT / directory).rglob('*') if p.is_file() and '__pycache__' not in p.parts
+                       and not p.name.startswith('.') and p not in EXCLUDED)
+    staged_files = {p.resolve() for p in sources if p.suffix in ('.md', '.png', '.jpg', '.svg', '.gif')}
     for source in sources:
-        destination = STAGE / ('repository.md' if source == ROOT / 'README.md' else source.relative_to(ROOT))
+        destination = staged(source)
         destination.parent.mkdir(parents=True, exist_ok=True)
         if source.suffix == '.md':
-            def rewrite(match, source=source, destination=destination):
-                target = match[2]
-                parsed = urlsplit(target)
-                if parsed.scheme or parsed.netloc or target.startswith('#'):
-                    return match[0]
-                resolved = (source.parent / unquote(parsed.path)).resolve()
-                if resolved == ROOT / 'README.md':
-                    relative = os.path.relpath(STAGE / 'repository.md', destination.parent)
-                    return match[1] + relative + ('#' + parsed.fragment if parsed.fragment else '') + match[3]
-                if resolved in markdown or (resolved.is_file() and resolved.suffix in ('.png', '.jpg', '.svg', '.gif')):
-                    return match[0]
-                try:
-                    relative = resolved.relative_to(ROOT).as_posix()
-                except ValueError:
-                    return match[0]
-                url = SOURCE_URL + relative
-                if parsed.fragment:
-                    url += '#' + parsed.fragment
-                return match[1] + url + match[3]
-            destination.write_text(LINK.sub(rewrite, source.read_text()))
+            destination.write_text(relink(source.read_text(), source.parent, destination, staged_files))
         else:
             shutil.copyfile(source, destination)
-    landing = (STAGE / 'docs/site/index.md').read_text()
-    landing = landing.replace('(getting-started.md)', '(docs/site/getting-started.md)').replace('(demos.md)', '(docs/site/demos.md)').replace('(scenarios.md)', '(docs/site/scenarios.md)').replace('(../architecture.md)', '(docs/architecture.md)').replace('(../how-it-works.md)', '(docs/how-it-works.md)').replace('(../guides/testing.md)', '(docs/guides/testing.md)')
-    (STAGE / 'index.md').write_text(landing)
-    readme = (STAGE / 'repository.md').read_text()
+    # The quick start has one source: the README section.
+    readme = (ROOT / 'README.md').read_text()
     quickstart = readme.split('## On Kubernetes\n', 1)[1].split('\n## ', 1)[0] + '\n'
-    quickstart = quickstart.replace('(docs/', '(../').replace('deployments/kind-node/', 'deployments/kind-node/')
-    (STAGE / 'docs/site/getting-started.md').write_text('# Quick start\n\n' + quickstart + '\nSee [telemetry](../guides/telemetry.md) for Grafana and dashboard details.\n')
+    page = STAGE / 'docs/getting-started.md'
+    page.write_text('# Quick start\n\n' + relink(quickstart, ROOT, page, staged_files)
+                    + '\nSee the [telemetry guide](guides/telemetry.md) for Grafana and dashboard details.\n')
 
 
 def main():

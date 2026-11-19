@@ -14,9 +14,22 @@ python scripts/docs/build.py
 python scripts/docs/build.py --serve
 ```
 
-Navigation is in `mkdocs.yml`. The quick-start page is extracted from the root
-README during staging, so installation commands have one source. Add new demos
-to the navigation and demo catalog; distinguish implemented behavior from plans.
+Navigation is in `mkdocs.yml`. `docs/index.md` becomes the site's home page,
+and the quick-start page is extracted from the root README during staging, so
+installation commands have one source. Add new demos to the navigation and the
+demo catalog; distinguish implemented behavior from plans.
+
+Pages live under `docs/` by kind: task guides in `docs/guides/` (all with the
+same sections: Overview, Requirements, Steps, Verify, How it works,
+Troubleshooting, Clean up, Related), reference pages in `docs/reference/` and
+contributor pages in `docs/contributing/`.
+
+Check every relative link and heading anchor in the repository's Markdown, the
+way GitHub renders them. The `lint` workflow runs this on every pull request:
+
+```bash
+scripts/check-links.py
+```
 
 The `docs-site` GitHub Actions workflow validates builds on pull requests.
 On a push to `main`, or manual dispatch, it uploads the built site and deploys

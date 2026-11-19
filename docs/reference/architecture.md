@@ -133,7 +133,7 @@ labeller; disable both bundled allocators before using it.
 The scheduler acts on advertised devices and claim requests, not dashboard
 telemetry. A generated claim follows its pod's lifetime; an explicit claim
 can remain after its consumers leave. Shared explicit claims and restart
-checkpoint behavior are covered in the [DRA lifecycle guide](guides/dra.md#release-explicit-claims-and-driver-restarts).
+checkpoint behavior are covered in the [DRA lifecycle guide](../guides/dra.md#release-explicit-claims-and-driver-restarts).
 A prepared container has device nodes, but no real GPU execution backend.
 
 ## Dashboard failures: two paths, different consequences
@@ -191,8 +191,8 @@ an already-running pod to terminate. Removing a host device path is not
 proof that existing container mounts disappear. DRA discovery occurs at
 startup; do not treat an injected fault as guaranteed deallocation.
 Recovery restores mock state; allocation consumers still require the
-appropriate rediscovery. See [dashboard action coverage](guides/telemetry.md#other-dashboard-actions)
-and [test scope](guides/testing.md).
+appropriate rediscovery. See [dashboard action coverage](../guides/telemetry.md#other-dashboard-actions)
+and [test scope](../contributing/testing.md).
 
 ## Node agent
 
@@ -214,10 +214,10 @@ Chart 0.1.0 defaults to AMD's unchanged DRA v1.0.0 driver, republished for
 AMD64 and ARM64. Its chart mounts mock sysfs at the driver's `/sys`. Kubernetes
 allocates ResourceClaims; kubelet calls prepare/unprepare; the driver writes
 per-claim CDI specs. Containerd injects only the allocated card/render devices
-and shared `/dev/kfd`. See the [DRA guide](guides/dra.md).
+and shared `/dev/kfd`. See the [DRA guide](../guides/dra.md).
 
 The alternative device plugin reads the same sysfs and registers physical
-GPU capacity as `amd.com/gpu`. See the [device-plugin guide](guides/device-plugin.md).
+GPU capacity as `amd.com/gpu`. See the [device-plugin guide](../guides/device-plugin.md).
 
 The published `amd-mock-kind-node:0.1.0` contains Kubernetes v1.37.0 and AMD's
 container toolkit, with CDI enabled. Both allocation paths use this image.
@@ -228,7 +228,7 @@ maps localhost:8080 to dashboard NodePort 30080 automatically.
 
 The default backend stages device nodes and sysfs as before. Consumers that
 need native device opens and libdrm queries can opt into the
-[CUSE/library backend](guides/driver-mock.md), using published driver image
+[CUSE/library backend](../guides/driver-mock.md), using published driver image
 `fake-gpu-driver:v0.1.0` with `driverMock.enabled=true`.
 
 ```text
@@ -268,7 +268,7 @@ explicit QEMU emulation. Prometheus, Grafana, Kubernetes and the node agent
 run natively. Bundled Prometheus uses DNS discovery of a headless exporter Service and
 preserves consumer labels. Grafana is provisioned and exposed at localhost:3000
 by the kind mapping. An external Prometheus Operator stack uses a ServiceMonitor.
-The demo config coordinates ports and enable switches for both dashboards. See the [telemetry guide](guides/telemetry.md)
+The demo config coordinates ports and enable switches for both dashboards. See the [telemetry guide](../guides/telemetry.md)
 for setup, fault flows, tests, provenance and limitations.
 
 ## Partitioning limits
@@ -285,7 +285,7 @@ A fixed MI300X DPX/NPS2 startup uses partition-specific card/render/KFD nodes
 and shared physical PCI/KFD identity. It exposes sixteen DRA devices across
 eight physical GPUs. The scheduler matches the physical parent attribute;
 AMD NodePrepare produces per-request CDI edits and the runtime applies them.
-See [the partition architecture and responsibility table](guides/partition-allocation.md#allocation-path)
+See [the partition architecture and responsibility table](../guides/partition-allocation.md#allocation-path)
 for the ASCII path, lifecycle, and verified boundaries. This startup topology
 is separate from the virtual dashboard API transitions described above.
 

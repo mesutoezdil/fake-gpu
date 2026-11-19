@@ -126,7 +126,7 @@ bundled profiles the test matrix covers.
 Use `--set gpu.profile=<slug>` at installation for allocation tests. Healthy
 telemetry varies dynamically rather than remaining at YAML defaults. The real
 exporter reads runtime name, canonical device UUID, PCI BDF, memory and sensor
-values through the [SMI bridge](guides/telemetry.md). Its initial ASIC metadata,
+values through the [SMI bridge](../guides/telemetry.md). Its initial ASIC metadata,
 PCIe limits and clock ranges still use MI300X constants; all-profile telemetry
 fidelity is not claimed. Allocation discovery tests separately cover all seven
 profiles. Live profile switching requires consumer rediscovery; per-tray
@@ -139,6 +139,6 @@ does not create schedulable hardware slices.
 Each parent becomes two schedulable devices with 96 GiB and 152 compute units,
 shared parent BDF/KFD identity, and unique card/render nodes. The original
 physical profile remains unchanged. Other model/mode combinations are rejected.
-See [same-GPU partition allocation](guides/partition-allocation.md). Fixed DPX
+See [same-GPU partition allocation](../guides/partition-allocation.md). Fixed DPX
 blocks runtime profile, tray and virtual partition changes; it does not
 implement real GPU execution, arbitrary slice sizes or hardware isolation.

@@ -1,18 +1,17 @@
 # Same-GPU partition allocation
 
-The mock can start with a fixed **MI300X DPX/NPS2** topology.
-Eight physical 192-GiB GPUs become sixteen schedulable 96-GiB devices,
-with 152 compute units per partition. Siblings retain one PCI bus address
-and KFD physical unique ID; each has its own card, render minor, KFD node,
-and logical UUID. The first partition appears under the PCI driver binding;
-the second appears under `amdgpu_xcp_*`, as expected by AMD's discovery code.
+This guide starts the mock with a fixed MI300X DPX/NPS2 topology and lets
+two containers claim different partitions of one physical GPU. It proves
+scheduler exclusivity and per-container device injection through AMD's
+unchanged DRA driver.
 
-This models AMD compute/memory partition discovery and allocation. It does
-not implement SR-IOV virtual functions, MxGPU VM passthrough, kernel execution,
-DMA isolation or real VRAM protection. It also does not let users request
-arbitrary slice sizes. Only SPX and MI300X DPX/NPS2 are supported as startup
-configurations in this release. Other dashboard partition modes remain
-virtual display demos.
+## Overview
+
+Eight physical 192-GiB GPUs become sixteen schedulable 96-GiB devices, with
+152 compute units per partition. Siblings retain one PCI bus address and KFD
+physical unique ID; each has its own card, render minor, KFD node, and logical
+UUID. The first partition appears under the PCI driver binding; the second
+appears under `amdgpu_xcp_*`, as expected by AMD's discovery code.
 
 AMD's [MI300X partition guide](https://instinct.docs.amd.com/projects/amdgpu-docs/en/latest/gpu-partitioning/mi300x/quick-start-guide.html)
 describes the hardware compute and memory modes. The unchanged
@@ -21,10 +20,26 @@ supports pre-partitioned devices and matching their parent PCI identity.
 The mock adds those devices below the driver; it does not manufacture
 ResourceSlices or ResourceClaim allocations.
 
-## Install
+This models AMD compute/memory partition discovery and allocation. It does
+not implement SR-IOV virtual functions, MxGPU VM passthrough, kernel execution,
+DMA isolation or real VRAM protection. It also does not let users request
+arbitrary slice sizes. Only SPX and MI300X DPX/NPS2 are supported as startup
+configurations in this release. Other dashboard partition modes remain
+virtual display demos. Use the [DRA guide](dra.md) for whole-GPU claims.
 
-Create the cluster using the root README quick start. On a **fresh cluster**,
-add one setting to the same chart installation:
+## Requirements
+
+- Everything listed in the [DRA guide requirements](dra.md#requirements).
+- A **fresh cluster** created with the root README quick start, with no
+  existing workloads or allocated claims.
+- The MI300X profile (the chart default). The chart rejects
+  `gpu.partition=DPX` with any other `gpu.profile`.
+
+## Steps
+
+### 1. Install the chart with DPX enabled
+
+On a fresh cluster, add one setting to the same chart installation:
 
 ```bash
 helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
@@ -34,16 +49,68 @@ helm install fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu \
 
 The published node image remains `amd-mock-kind-node:0.1.0`; no custom image
 build is needed. DRA remains the default allocator. The mock dashboard and
-Grafana start through the same quick start port mappings.
+Grafana start through the same quick start port mappings. The chart defaults
+to SPX, preserving the existing whole-GPU quick start.
 
-Do not change SPX/DPX while workloads or allocated claims exist. Drain and
-delete claims first, and preferably recreate the local cluster to remove old
-host devices. DPX startup mode rejects dashboard profile/tray changes and
-virtual repartition requests with HTTP 409. Switching topology requires a
-new startup configuration and driver discovery after the mock is ready.
-The chart defaults to SPX, preserving the existing whole-GPU quick start.
+### 2. Claim two partitions of one GPU
 
-## Allocation path
+A ResourceClaim has two named requests, each selecting `amdgpu-partition`.
+Its `matchAttribute: resource.kubernetes.io/pciBusID` constraint asks the
+scheduler to place both requests on the same physical parent. Each container
+references the shared claim plus its own `request: left` or `request: right`.
+The [demo](../../demo/partition-allocation/README.md) creates this pod
+(`two-containers`, claim `two-slices`) as part of its run:
+
+```bash
+./demo/partition-allocation/run.sh
+```
+
+The script runs `test/e2e/dra/partitions.py` against the current kubeconfig,
+so select the DPX cluster explicitly.
+
+## Verify
+
+Run the proof directly:
+
+```bash
+python3 test/e2e/dra/partitions.py
+```
+
+This uses the selected kubeconfig and creates the dedicated namespace
+`amd-demo-partition-allocation` (override with `PARTITION_NS`). It refuses to
+overwrite an existing namespace. The test checks:
+
+- AMD publishes sixteen `amdgpu-partition` devices, grouped into eight parents.
+- Two pods receive different partitions of one selected parent.
+- Each container has exactly its allocated character render device and KFD.
+- A third same-parent consumer stays Pending when both partitions are occupied.
+- Deleting one pod and claim lets the waiting consumer reuse that device;
+  the sibling remains Ready with its original allocation.
+- Restarting AMD's DRA plugin preserves both live allocations.
+- Two containers in one pod receive different partitions with the same parent,
+  `dpx_nps2` profile and 96-GiB advertised capacity each.
+
+The final two-container pod stays Running for inspection:
+
+```bash
+kubectl -n amd-demo-partition-allocation get pod two-containers
+kubectl -n amd-demo-partition-allocation logs two-containers -c left
+kubectl -n amd-demo-partition-allocation logs two-containers -c right
+kubectl -n amd-demo-partition-allocation get resourceclaim two-slices -o yaml
+```
+
+Each container sees `/dev/kfd` and its own card/render pair. It cannot see
+the sibling render device through that allocation.
+
+CI runs both source and published-image paths.
+`PARTITION_MODE=DPX test/container/dra_discovery/run.sh mi300x` separately
+exercises AMD's unchanged low-level discovery in a private Linux mount
+namespace. See also
+[same-GPU partition allocation tests](../contributing/testing.md#same-gpu-partition-allocation).
+
+## How it works
+
+### Allocation path
 
 ```text
 MI300X physical parent: 192 GiB, one PCI BDF / KFD unique ID
@@ -66,7 +133,12 @@ Pod deletion + claim deletion -> AMD NodeUnprepare -> remove claim CDI spec
                              -> released partition available for reuse
 ```
 
-## Responsibilities of each layer
+Kubelet asks the real AMD driver to prepare the claim, and the runtime applies
+its CDI device edits. The scheduler picks the parent; no hard-coded GPU
+address is needed for this case. Separate pods can select the same specific
+parent through a CEL `pciBusID` selector.
+
+### Responsibilities of each layer
 
 | Layer | Responsibility | Mocked or real |
 | --- | --- | --- |
@@ -86,6 +158,22 @@ devices directly into demo pods. The mock supplies the discovery inputs;
 the AMD driver, Kubernetes and container runtime produce the allocation and
 injection results through their normal interfaces.
 
+### Claim lifetime
+
+ResourceClaims own their allocations: deleting a pod alone does not free an
+explicitly created claim. Delete the claim as well.
+
+### Topology changes
+
+DPX startup mode rejects dashboard profile/tray changes and virtual
+repartition requests with HTTP 409. Switching topology requires a new startup
+configuration and driver discovery after the mock is ready.
+
+The dashboard's runtime SPX/DPX/QPX/CPX controls remain a virtual display
+simulation when using the normal SPX startup configuration. They do not create
+schedulable partitions. Schedulable DPX/NPS2 comes from the fixed startup
+configuration described here, which blocks runtime topology changes.
+
 ### Simulation boundaries
 
 Synthetic sysfs and fake character nodes intentionally replace hardware-facing
@@ -96,72 +184,26 @@ surfaces to the driver. The AMD DRA driver source remains unchanged.
 
 For telemetry, the mock AMD SMI library supplies synthetic device state to the
 real AMD metrics exporter. This is a separate path from DRA allocation.
-The same-GPU allocation suite does not establish correct per-partition exporter
-workload attribution or physical fault propagation across sibling partitions.
-
-The dashboard's runtime SPX/DPX/QPX/CPX controls remain a virtual display
-simulation when using the normal SPX startup configuration. They do not create
-schedulable partitions. Schedulable DPX/NPS2 comes from the fixed startup
-configuration described here, which blocks runtime topology changes.
+The dashboard exposes logical indices, `partition_index`, `memory_partition`,
+and the shared `pci_bdf`.
 
 ### What the checks establish
 
-The [demo](../../demo/partition-allocation/README.md) verifies
-AMD discovery and advertised capacities, same-parent scheduler allocation,
-per-container character-device visibility, exhaustion, claim CDI cleanup,
-released-device reuse, sibling continuity, and allocation continuity through
-a driver pod replacement. This supports the allocation path above. It does
-not certify the entire project as free of workarounds, or establish hardware
-compute, DMA or memory isolation.
-
-## Two containers, one physical GPU
-
-A ResourceClaim has two named requests, each selecting `amdgpu-partition`.
-Its `matchAttribute: resource.kubernetes.io/pciBusID` constraint asks the
-scheduler to place both requests on the same physical parent. Each container
-references the shared claim plus its own `request: left` or `request: right`.
-Kubelet asks the real AMD driver to prepare the claim, and the runtime applies
-its CDI device edits. Each container sees `/dev/kfd` and its own card/render
-pair. It cannot see the sibling render device through that allocation.
-
-The scheduler picks the parent; no hard-coded GPU address is needed for this
-case. Separate pods can select the same specific parent through a CEL
-`pciBusID` selector. ResourceClaims own their allocations: deleting a pod
-alone does not free an explicitly created claim. Delete the claim as well.
-
-## Run the proof
-
-```bash
-python3 tests/dra/partition-allocation.py
-```
-
-This uses the selected kubeconfig and creates the dedicated namespace
-`amd-demo-partition-allocation`. It refuses to overwrite an existing namespace.
-The test checks:
-
-- AMD publishes sixteen `amdgpu-partition` devices, grouped into eight parents.
-- Two pods receive different partitions of one selected parent.
-- Each container has exactly its allocated character render device and KFD.
-- A third same-parent consumer stays Pending when both partitions are occupied.
-- Deleting one pod and claim lets the waiting consumer reuse that device;
-  the sibling remains Ready with its original allocation.
-- Restarting AMD's DRA plugin preserves both live allocations.
-- Two containers in one pod receive different partitions with the same parent,
-  `dpx_nps2` profile and 96-GiB advertised capacity each.
-
-The final two-container pod stays Running for inspection. Remove its namespace
-to release both partitions. CI runs both source and published-image paths;
-`PARTITION_MODE=DPX tests/dra/discovery-check.sh mi300x` separately exercises
-AMD's unchanged low-level discovery in a private Linux mount namespace.
-
-## Scope of the proof
+The [demo](../../demo/partition-allocation/README.md) verifies AMD discovery
+and advertised capacities, same-parent scheduler allocation, per-container
+character-device visibility, exhaustion, claim CDI cleanup, released-device
+reuse, sibling continuity, and allocation continuity through a driver pod
+replacement. This supports the allocation path above.
 
 The successful test proves scheduler exclusivity and per-container device
 injection. Character nodes are mocks; passing these tests does not prove
-hardware compute or memory isolation. The dashboard exposes logical indices,
-`partition_index`, `memory_partition`, and the shared `pci_bdf`.
-Per-partition AMD exporter workload attribution and physical fault propagation
-are separate from this allocation proof and are not asserted by this test.
+hardware compute or memory isolation. It does not certify the entire project
+as free of workarounds, or establish hardware compute, DMA or memory
+isolation. Per-partition AMD exporter workload attribution and physical fault
+propagation across sibling partitions are separate from this allocation proof
+and are not asserted by this test.
+
+### Publishing the mock image
 
 Maintainers build and publish the mock image and chart with
 `scripts/build-mock-images.sh --push`. This leaves the existing node, AMD DRA,
@@ -170,3 +212,33 @@ and real exporter image tags intact.
 Use `podman login docker.io` before publishing, or set `REGISTRY_AUTHFILE` to
 an existing Docker-compatible registry auth file. Credentials are never
 embedded in the source or images.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Dashboard profile/tray change or repartition returns HTTP 409 | DPX startup mode blocks runtime topology changes | Change topology only through a new startup configuration |
+| Old host devices remain after switching SPX/DPX | Topology changed while workloads or claims existed | Do not change SPX/DPX while workloads or allocated claims exist. Drain and delete claims first, and preferably recreate the local cluster |
+| Consumer stays Pending | Both partitions of the selected parent are occupied | Delete a consumer pod and its claim to release a partition |
+| Partition still allocated after its pod is deleted | Explicit ResourceClaims own their allocations | Delete the ResourceClaim as well |
+| `partitions.py` refuses to run | Namespace `amd-demo-partition-allocation` already exists | Delete it, or set `PARTITION_NS` to an unused name |
+
+## Clean up
+
+Remove the demo namespace to release both partitions:
+
+```bash
+kubectl delete namespace amd-demo-partition-allocation
+```
+
+Then follow the [DRA guide clean up](dra.md#clean-up) to remove the chart and
+cluster.
+
+## Related
+
+- [Dynamic Resource Allocation (DRA)](dra.md)
+- [Partition allocation demo](../../demo/partition-allocation/README.md)
+- [Same-GPU allocation presentation](../../demo/README.md#same-gpu-allocation-presentation)
+- [Same-GPU partition allocation tests](../contributing/testing.md#same-gpu-partition-allocation)
+- [Architecture](../reference/architecture.md)
+- [AMD MI300X partition guide](https://instinct.docs.amd.com/projects/amdgpu-docs/en/latest/gpu-partitioning/mi300x/quick-start-guide.html)

@@ -37,5 +37,7 @@ jobs:
         run: git ls-files '*.py' | xargs python -m py_compile
       - name: Check helpers and deploy filters
         run: python -m unittest discover -s test/lib -v
+      - name: Markdown links and anchors
+        run: scripts/check-links.py
       - name: Chart contracts
         run: test/chart/run.sh

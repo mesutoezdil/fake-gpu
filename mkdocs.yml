@@ -42,29 +42,28 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
 nav:
-  - General:
+  - Home:
       - Overview: index.md
-      - Getting started:
-          - Quick start: docs/site/getting-started.md
-          - Choose a demo: docs/site/demos.md
-      - Architecture:
-          - Component diagrams: docs/architecture.md
-          - Mock interfaces and responsibilities: docs/how-it-works.md
-      - Reference:
-          - GPU profiles: docs/profiles.md
-          - Simulation depth by area: docs/simulation-depth.md
-      - Troubleshooting: docs/site/troubleshooting.md
+      - Quick start: docs/getting-started.md
+      - Choose a demo: docs/demos.md
+      - Troubleshooting: docs/troubleshooting.md
   - Guides:
-      - Overview: docs/site/scenarios.md
-      - Scenarios:
-          - AMD device plugin: docs/guides/device-plugin.md
-          - Optional CUSE and libdrm: docs/guides/driver-mock.md
+      - Overview: docs/guides/index.md
+      - Allocation:
           - AMD DRA driver: docs/guides/dra.md
-          - Tiny LLM: demo/llm/README.md
+          - AMD device plugin: docs/guides/device-plugin.md
+          - Same-GPU partition allocation: docs/guides/partition-allocation.md
+      - Platforms:
+          - Optional CUSE and libdrm: docs/guides/driver-mock.md
           - OpenShift Local (restricted-v2): docs/guides/openshift-local.md
+      - Telemetry: docs/guides/telemetry.md
+  - Demos:
+      - Presenter guide: demo/README.md
+      - Workloads:
+          - Tiny LLM: demo/llm/README.md
           - DRA allocation: demo/dra/README.md
           - Multiple GPUs: demo/multi-gpu/README.md
-          - Same-GPU partition allocation: demo/partition-allocation/README.md
+          - Same-GPU partitions: demo/partition-allocation/README.md
           - Spur batch scheduling: demo/spur/README.md
       - Tasks:
           - Allocation and release: demo/allocation/README.md
@@ -72,13 +71,14 @@ nav:
           - Prometheus and Grafana: demo/telemetry/README.md
           - Virtual partition controls: demo/partitioning/README.md
           - Switching GPU profiles: demo/profiles/README.md
-      - Details:
-          - Presenter guide: demo/README.md
-          - Partition architecture: docs/guides/partition-allocation.md
-          - Telemetry architecture: docs/guides/telemetry.md
+  - Reference:
+      - Architecture: docs/reference/architecture.md
+      - How it works: docs/reference/how-it-works.md
+      - GPU profiles: docs/reference/profiles.md
+      - Simulation depth by area: docs/reference/simulation-depth.md
   - Contributing:
-      - Testing: docs/guides/testing.md
-      - Documentation site: docs/site/maintaining.md
+      - Testing: docs/contributing/testing.md
+      - Documentation site: docs/contributing/docs-site.md
 validation:
   nav:
     omitted_files: ignore
