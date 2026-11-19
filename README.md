@@ -265,6 +265,5 @@ prerequisites and the CI workflow that runs it.
 
 ## License
 
-GNU Affero General Public License v3.0, see [LICENSE](LICENSE). Parts of the
-code were first released by third parties under the Apache License 2.0 and stay
-available under it; [NOTICE](NOTICE) has the details.
+GNU Affero General Public License v3.0, see [LICENSE](LICENSE). Two AMD files
+keep their own licenses; [NOTICE](NOTICE) lists them.
