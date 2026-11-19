@@ -1,17 +1,38 @@
-# AMD SMI ABI provenance
+# AMD SMI mock: provenance
 
-`amdsmi.h` is copied without modification from ROCm/gpu-agent release-v1.5.2, commit `4ce653089c09ae9be2503425d63d3e4452992813`, path `sw/nic/third-party/rocm/amd_smi_lib/include/amd_smi/amdsmi.h`. Its MIT notice remains intact. It defines AMD SMI ABI 27.0.
+## Header
 
-The real collector binaries come unchanged from `docker.io/rocm/device-metrics-exporter:v1.5.2`, pinned to digest `sha256:d4f2706cc42a526aeba36da082f07bbdd74be9b4d6988ae16d914fb474de9f75`. GPU Agent requires `libamd_smi.so.27` with GNU symbol version `AMDSMI_1`; both are supplied by the replacement.
+`amdsmi.h` is AMD's AMD SMI header, unchanged and under its own MIT notice. It
+comes from ROCm/gpu-agent `release-v1.5.2`, commit
+`4ce653089c09ae9be2503425d63d3e4452992813`, file
+`sw/nic/third-party/rocm/amd_smi_lib/include/amd_smi/amdsmi.h`, and defines
+AMD SMI ABI 27.0.
 
-`unsupported.c` is generated from the GPU-only preprocessed header. To refresh it:
+## Consumers
+
+The collector binaries are AMD's, unchanged, from
+`docker.io/rocm/device-metrics-exporter:v1.5.2` pinned to
+`sha256:d4f2706cc42a526aeba36da082f07bbdd74be9b4d6988ae16d914fb474de9f75`.
+GPU Agent loads `libamd_smi.so.27` and needs the GNU symbol version
+`AMDSMI_1`; `version.map` provides both.
+
+Exporter v1.4.1 was tried during development. Its GPU Agent does not read
+ECC counters, so it cannot carry the dashboard's ECC fault through to
+Prometheus, and it is not the supported image.
+
+## What is implemented
+
+`mock.c` implements the identity, enumeration and telemetry calls the pinned
+collector and discovery clients make, from the agent's snapshots. Every other
+function of the ABI (control, events, profiling, CPU and NIC) is a stub in
+`unsupported.c` that returns `AMDSMI_STATUS_NOT_SUPPORTED`, so nothing
+pretends to succeed without doing the work.
+
+## Regenerating the stubs
+
+After adding or removing a function in `mock.c`:
 
 ```bash
-cc -E -P amdsmi.h > /tmp/amdsmi-preprocessed.h
-python3 generate-stubs.py /tmp/amdsmi-preprocessed.h
-clang-format -i unsupported.c
+cc -E -P amdsmi.h > /tmp/amdsmi.i
+./generate-stubs.py /tmp/amdsmi.i
 ```
-
-The mock implements the telemetry and identity calls needed by the pinned collector. Unsupported control, event, profiler and other device capabilities return `AMDSMI_STATUS_NOT_SUPPORTED` rather than succeeding without doing work.
-
-AMD exporter v1.4.1 was tested during development, but its bundled GPU Agent does not read ECC counters. It cannot validate the dashboard ECC pathway and is not the supported telemetry image.
