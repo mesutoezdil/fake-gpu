@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/containerd/nri/pkg/api"
@@ -33,22 +34,8 @@ func main() {
 	releaseNS := flag.String("release-namespace", "amd-mock", "the release namespace (always excluded)")
 	flag.Parse()
 
-	excluded := make(map[string]bool)
-	excluded[*releaseNS] = true
-	for _, ns := range strings.Split(*excludeNS, ",") {
-		ns = strings.TrimSpace(ns)
-		if ns != "" {
-			excluded[ns] = true
-		}
-	}
-
-	p := &plugin{
-		overlayHostPath:  *overlayHost,
-		overlayMountPath: *overlayMount,
-		excludedNS:       excluded,
-		optOutAnnotation: "fake-gpu.amd.com/inject",
-		deviceAnnotation: "fake-gpu.amd.com/devices",
-	}
+	excluded := excludedNamespaces(*excludeNS, *releaseNS)
+	p := newPlugin(*overlayHost, *overlayMount, excluded)
 
 	var err error
 	p.stub, err = stub.New(p,
@@ -66,6 +53,28 @@ func main() {
 	if err := p.stub.Run(ctx); err != nil {
 		log.Fatalf("NRI plugin exited: %v", err)
 	}
+}
+
+func newPlugin(overlayHost, overlayMount string, excluded map[string]bool) *plugin {
+	return &plugin{
+		overlayHostPath:  overlayHost,
+		overlayMountPath: overlayMount,
+		excludedNS:       excluded,
+		optOutAnnotation: "fake-gpu.amd.com/inject",
+		deviceAnnotation: "fake-gpu.amd.com/devices",
+	}
+}
+
+// excludedNamespaces parses the comma-separated list and always adds the
+// release namespace, so the mock never injects into its own pods.
+func excludedNamespaces(list, release string) map[string]bool {
+	excluded := map[string]bool{release: true}
+	for _, ns := range strings.Split(list, ",") {
+		if ns = strings.TrimSpace(ns); ns != "" {
+			excluded[ns] = true
+		}
+	}
+	return excluded
 }
 
 func (p *plugin) CreateContainer(_ context.Context, pod *api.PodSandbox, ctr *api.Container) (*api.ContainerAdjustment, []*api.ContainerUpdate, error) {
@@ -131,7 +140,7 @@ func (p *plugin) CreateContainer(_ context.Context, pod *api.PodSandbox, ctr *ap
 			Type:     "c",
 			Major:    234,
 			Minor:    0,
-			FileMode: api.FileMode(0o660),
+			FileMode: api.FileMode(os.FileMode(0o660)),
 		})
 
 		for i := 0; i < 8; i++ {
@@ -140,7 +149,7 @@ func (p *plugin) CreateContainer(_ context.Context, pod *api.PodSandbox, ctr *ap
 				Type:     "c",
 				Major:    226,
 				Minor:    int64(128 + i),
-				FileMode: api.FileMode(0o660),
+				FileMode: api.FileMode(os.FileMode(0o660)),
 			})
 		}
 	}
