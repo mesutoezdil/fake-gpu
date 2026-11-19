@@ -41,7 +41,7 @@ jobs:
           ignore_failed_clean: true
           cluster_name: amd-dra-test
           node_image: ${{ matrix.stack == 'published' && 'ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0' || 'kindest/node:v1.37.0' }}
-          config: deployments/kind-node/kind-config.yaml
+          config: deploy/kind-node/kind-config.yaml
           wait: 120s
       - name: Registry credentials for the node
         run: scripts/ci/node-registry-auth.sh amd-dra-test
@@ -56,7 +56,7 @@ jobs:
           make -C pkg/hipshim
           docker build -f Dockerfile.prebuilt -t fake-gpu:dra-test .
           kind load docker-image fake-gpu:dra-test --name amd-dra-test
-          helm install fake-gpu deployments/helm/fake-gpu \
+          helm install fake-gpu charts/fake-gpu \
             --set monitoring.enabled=false --set metricsExporter.enabled=false \
             -n amd-mock --create-namespace \
             --set image.repository=fake-gpu --set image.tag=dra-test \
@@ -72,26 +72,26 @@ jobs:
             --version 0.1.0 -n amd-mock --create-namespace
           kubectl -n amd-mock rollout status ds/fake-gpu --timeout=120s
       - name: Dashboard available automatically on host
-        run: python3 tests/dashboard-e2e.py
+        run: python3 test/e2e/demo/dashboard.py
       - name: Grafana available automatically on host
         if: matrix.stack == 'published'
-        run: python3 tests/demo/grafana-e2e.py
+        run: python3 test/e2e/demo/grafana.py
       - name: DRA discovery and allocation
         env:
           KEEP: "1"
           INSTALL_DRIVER: "0"
           DRA_NS: amd-mock
         run: |
-          tests/dra/validate_dra.sh
+          test/e2e/dra/run.sh
           kubectl delete namespace amd-dra-test --wait=true --timeout=120s
-          python3 tests/dra/lifecycle.py
+          python3 test/e2e/dra/lifecycle.py
       - name: DRA capacity, shared containers and PCIe constraints
         run: |
           set -o pipefail
           mkdir -p artifacts
-          python3 -u tests/dra/focused.py | tee artifacts/dra-focused.log
+          python3 -u test/e2e/dra/constraints.py | tee artifacts/dra-constraints.log
       - name: Default DRA Tiny LLM and virtual partition demo
-        run: MODE=dra python3 tests/demo-e2e.py
+        run: MODE=dra python3 test/e2e/demo/workloads.py
       - name: Collect diagnostics
         if: always()
         run: |

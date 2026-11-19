@@ -34,14 +34,14 @@ if grep -Fxq "$CLUSTER_NAME" <<< "$(kind get clusters 2>/dev/null)"; then
 fi
 kind create cluster --name "$CLUSTER_NAME" \
     --image "$IMAGE_REGISTRY/amd-mock-kind-node:$RELEASE_VERSION" \
-    --config "$REPO_ROOT/deployments/kind-node/kind-config.yaml" \
+    --config "$REPO_ROOT/deploy/kind-node/kind-config.yaml" \
     --kubeconfig "$KUBECONFIG" --wait 120s
 helm install fake-gpu "oci://$IMAGE_REGISTRY/fake-gpu" \
     --version "${CHART_VERSION:-$RELEASE_VERSION}" --namespace amd-mock --create-namespace \
     --set devicePlugin.enabled=false --set dra.enabled=true
 kubectl -n amd-mock rollout status ds/fake-gpu --timeout=120s
 kubectl -n amd-mock rollout status ds/fake-gpu-dra-kubeletplugin --timeout=180s
-kubectl apply -f "$REPO_ROOT/deployments/dra/demo.yaml"
+kubectl apply -f "$REPO_ROOT/deploy/workloads/dra-claim.yaml"
 kubectl wait pod/dra-gpu-demo --for=condition=Ready --timeout=180s
 kubectl exec dra-gpu-demo -- ls -l /dev/kfd /dev/dri
 echo "DRA ready. Inspect with: KUBECONFIG=$KUBECONFIG kubectl get resourceslices"

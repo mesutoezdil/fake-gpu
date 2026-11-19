@@ -36,9 +36,6 @@ jobs:
       - name: Every Python file compiles
         run: git ls-files '*.py' | xargs python -m py_compile
       - name: Check helpers and deploy filters
-        run: python -m unittest discover -s tests/lib -v
+        run: python -m unittest discover -s test/lib -v
       - name: Chart contracts
-        run: |
-          tests/dra/chart-validation.sh
-          tests/demo/chart-validation.sh
-          tests/driver-mock/chart.sh
+        run: test/chart/run.sh

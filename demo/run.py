@@ -70,7 +70,7 @@ def allocator():
 
 
 def settings():
-    rendered = subprocess.check_output(["helm", "template", "kind", str(ROOT / "deployments/kind-node/config-chart"),
+    rendered = subprocess.check_output(["helm", "template", "kind", str(ROOT / "deploy/kind-node/config-chart"),
                                        "-f", args.config, "--show-only", "templates/runtime.json"], text=True)
     return json.loads(rendered[rendered.index("{"):])
 

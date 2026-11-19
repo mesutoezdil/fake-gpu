@@ -52,15 +52,15 @@ for arch in amd64 arm64; do
     cp "$BUILD_DIR/dra/LICENSE" "$context/driver/"
     (cd "$BUILD_DIR/toolkit" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/node/bin/amd-container-runtime" ./cmd/container-runtime)
     (cd "$BUILD_DIR/toolkit" && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -o "$context/node/bin/amd-ctk" ./cmd/amd-ctk)
-    cp "$REPO_ROOT"/deployments/kind-node/*.toml "$context/node/"
+    cp "$REPO_ROOT"/deploy/kind-node/*.toml "$context/node/"
     cp "$BUILD_DIR/toolkit/LICENSE" "$context/node/TOOLKIT-LICENSE"
     "$RUNTIME" build --platform "linux/$arch" -f "$REPO_ROOT/Dockerfile.prebuilt" \
         -t "$IMAGE_REGISTRY/fake-gpu:v${MOCK_IMAGE_VERSION:-$RELEASE_VERSION}-$arch" "$context/mock"
     "$RUNTIME" build --platform "linux/$arch" --build-arg "UPSTREAM_COMMIT=$DRA_COMMIT" \
-        -f "$REPO_ROOT/deployments/dra/image/Dockerfile" \
+        -f "$REPO_ROOT/deploy/dra/image/Dockerfile" \
         -t "$IMAGE_REGISTRY/amd-gpu-dra-driver:$DRA_IMAGE_TAG-$arch" "$context/driver"
     "$RUNTIME" build --platform "linux/$arch" --build-arg "BASE_IMAGE=$KIND_BASE_IMAGE" \
-        -f "$REPO_ROOT/deployments/kind-node/Dockerfile" \
+        -f "$REPO_ROOT/deploy/kind-node/Dockerfile" \
         -t "$IMAGE_REGISTRY/amd-mock-kind-node:$RELEASE_VERSION-$arch" "$context/node"
 done
 for artifact in fake-gpu amd-gpu-dra-driver amd-mock-kind-node; do
@@ -73,8 +73,8 @@ for artifact in fake-gpu amd-gpu-dra-driver amd-mock-kind-node; do
     for arch in amd64 arm64; do "$RUNTIME" manifest add "$manifest" "containers-storage:$manifest-$arch"; done
     if $PUSH; then "$RUNTIME" manifest push --all "$manifest" "docker://$manifest"; fi
 done
-helm lint "$REPO_ROOT/deployments/helm/fake-gpu"
-helm package "$REPO_ROOT/deployments/helm/fake-gpu" -d "$BUILD_DIR"
+helm lint "$REPO_ROOT/charts/fake-gpu"
+helm package "$REPO_ROOT/charts/fake-gpu" -d "$BUILD_DIR"
 if $PUSH; then
     helm push "$BUILD_DIR/fake-gpu-${CHART_VERSION:-$RELEASE_VERSION}.tgz" "oci://$IMAGE_REGISTRY"
 fi

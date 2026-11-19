@@ -28,7 +28,7 @@ jobs:
           CONTAINER_RUNTIME: docker
         run: |
           go test -race ./...
-          ./tests/telemetry/abi.sh
+          ./test/container/smi_abi/run.sh
       - name: Build this checkout's mock and real collector runtime
         run: |
           mkdir -p tmp/ci/bin tmp/ci/pkg/mocksmi
@@ -44,7 +44,7 @@ jobs:
           docker run --rm -v "$PWD/pkg/hipshim:/src:ro" -v "$PWD/tmp/ci/pkg/hipshim:/out" gcc:14 \
             gcc -shared -fPIC -O2 -Wl,-soname,libfakehip.so -o /out/libfakehip.so /src/fakehip.c -lpthread
           docker build -f Dockerfile.prebuilt -t local/fake-gpu:test tmp/ci
-          docker build -f deployments/metrics-exporter/Dockerfile -t local/amd-device-metrics-exporter:test .
+          docker build -f deploy/metrics-exporter/Dockerfile -t local/amd-device-metrics-exporter:test .
       - name: Log in to GHCR
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -57,7 +57,7 @@ jobs:
           kubectl_version: v1.37.0
           node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           cluster_name: amd-telemetry-test
-          config: deployments/kind-node/kind-config.yaml
+          config: deploy/kind-node/kind-config.yaml
           ignore_failed_clean: true
           wait: 120s
       - name: Registry credentials for the node
@@ -69,18 +69,18 @@ jobs:
           kind load docker-image local/fake-gpu:test local/amd-device-metrics-exporter:test --name amd-telemetry-test
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm install monitoring prometheus-community/kube-prometheus-stack --version 92.0.0 \
-            -n monitoring --create-namespace -f deployments/metrics-exporter/monitoring-values.yaml \
+            -n monitoring --create-namespace -f deploy/metrics-exporter/monitoring-values.yaml \
             --set grafana.adminPassword=amdmock --wait --timeout 8m
           dra=true
           plugin=false
           if [ "$ALLOCATOR" = device-plugin ]; then dra=false; plugin=true; fi
-          helm install fake-gpu deployments/helm/fake-gpu -n amd-mock --create-namespace \
+          helm install fake-gpu charts/fake-gpu -n amd-mock --create-namespace \
             --set image.repository=local/fake-gpu --set image.tag=test \
             --set monitoring.enabled=false \
             --set dra.enabled="$dra" --set devicePlugin.enabled="$plugin" \
             --set metricsExporter.enabled=true --set metricsExporter.image=local/amd-device-metrics-exporter:test \
             --set metricsExporter.serviceMonitor.enabled=true --wait --timeout 5m
-          kubectl apply -f deployments/metrics-exporter/grafana-dashboard.yaml
+          kubectl apply -f deploy/metrics-exporter/grafana-dashboard.yaml
       - name: Telemetry, dashboard actions, workload labels and restart recovery
         env:
           ALLOCATOR: ${{ matrix.allocator }}
@@ -90,12 +90,12 @@ jobs:
           kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80 > /tmp/grafana-forward.log 2>&1 &
           grafana_pid=$!
           trap 'kill "$prom_pid" "$grafana_pid" 2>/dev/null || true' EXIT
-          python3 -u tests/telemetry/e2e.py
-          python3 -u tests/telemetry/attribution.py
+          python3 -u test/e2e/telemetry/pipeline.py
+          python3 -u test/e2e/telemetry/attribution.py
           kubectl -n amd-mock rollout restart ds/fake-gpu-metrics-exporter
           kubectl -n amd-mock rollout status ds/fake-gpu-metrics-exporter --timeout=120s
-          python3 -u tests/telemetry/e2e.py
-          python3 tests/dashboard-e2e.py
+          python3 -u test/e2e/telemetry/pipeline.py
+          python3 test/e2e/demo/dashboard.py
       - name: Diagnostics
         if: always()
         run: |

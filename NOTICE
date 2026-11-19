@@ -11,5 +11,5 @@ remain available under that license; its text is in LICENSES/Apache-2.0.txt.
 
 Third-party files kept under their own terms:
 - pkg/mocksmi/amdsmi.h: AMD, MIT license (notice in the file).
-- deployments/helm/fake-gpu/charts/k8s-gpu-dra-driver: AMD, Apache License 2.0
+- charts/fake-gpu/charts/k8s-gpu-dra-driver: AMD, Apache License 2.0
   (LICENSE in that directory).
