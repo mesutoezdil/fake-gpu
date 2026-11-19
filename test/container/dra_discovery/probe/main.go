@@ -22,10 +22,10 @@ import (
 	"regexp"
 	"strings"
 
-	"fakegpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
+	"github.com/mesutoezdil/fake-gpu/pkg/sysfs"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/amdgpu"
-	"gopkg.in/yaml.v3"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func main() {
 	p := loadProfile(os.Args[2])
 	if mode := os.Getenv("PARTITION_MODE"); mode != "" {
 		var err error
-		p, err = kfd.PartitionProfile(p, mode)
+		p, err = profile.Partition(p, mode)
 		if err != nil {
 			fatalf("partition: %v", err)
 		}
@@ -45,7 +45,7 @@ func main() {
 		if len(os.Args) != 4 {
 			usage()
 		}
-		if err := kfd.NewRenderer(p, os.Args[3]).RenderAll(); err != nil {
+		if err := sysfs.New(p, os.Args[3]).Render(); err != nil {
 			fatalf("render: %v", err)
 		}
 	case "check":
@@ -59,7 +59,7 @@ func main() {
 	}
 }
 
-func check(p *kfd.Profile) int {
+func check(p *profile.Profile) int {
 	fails := 0
 	failf := func(format string, a ...any) {
 		fails++
@@ -78,58 +78,58 @@ func check(p *kfd.Profile) int {
 		failf("AMD's discovery found %d devices, profile defines %d", len(got), len(p.Devices))
 	}
 
-	d := p.DeviceDefault
+	d := p.Card
 	// AMD's discovery turns the sysfs product_name into an attribute value
 	// with this replacer.
-	wantName := strings.NewReplacer(" ", "_", "(", "", ")", "").Replace(d.SysfsProductName())
+	wantName := strings.NewReplacer(" ", "_", "(", "", ")", "").Replace(d.ProductName())
 
 	for _, dev := range p.Devices {
-		if !bdfRe.MatchString(dev.PCIBDF) {
-			failf("%s: not a lowercase extended BDF; Kubernetes rejects it as pciBusID", dev.PCIBDF)
+		if !bdfRe.MatchString(dev.BDF) {
+			failf("%s: not a lowercase extended BDF; Kubernetes rejects it as pciBusID", dev.BDF)
 		}
-		key := dev.PCIBDF
-		if dev.PartitionIndex > 0 {
+		key := dev.BDF
+		if dev.Slice > 0 {
 			key = fmt.Sprintf("amdgpu_xcp_%d", dev.Index)
 		}
 		g, ok := got[key]
 		if !ok {
-			failf("%s: not discovered", dev.PCIBDF)
+			failf("%s: not discovered", dev.BDF)
 			continue
 		}
-		wantRoot, wantNUMA := rootComplex(p, dev.PCIBDF)
+		wantRoot, wantNUMA := rootComplex(p, dev.BDF)
 		if wantRoot == "" {
-			failf("%s: not listed under any pcie_topology root complex, so it gets no PCI device, NUMA node or pcieRoot", dev.PCIBDF)
+			failf("%s: not listed under any pcie_topology root complex, so it gets no PCI device, NUMA node or pcieRoot", dev.BDF)
 		}
 		want := []struct {
 			key  string
 			want any
 		}{
-			{"pciAddr", dev.PCIBDF},
+			{"pciAddr", dev.BDF},
 			{"card", dev.Index},
-			{"renderD", dev.DRMRenderMinor},
-			{"deviceID", fmt.Sprintf("0x%04x", d.DeviceID)},
+			{"renderD", dev.RenderMinor},
+			{"deviceID", fmt.Sprintf("0x%04x", d.Device)},
 			{"productName", wantName},
-			{"driverVersion", p.System.AMDGPUVersion},
-			{"cuCount", d.Compute.CUCount},
-			{"simdCount", d.Compute.SIMDCount},
-			{"vramBytes", d.Memory.VRAMSizeBytes},
+			{"driverVersion", p.Software.Driver},
+			{"cuCount", d.Compute.CUs},
+			{"simdCount", d.Compute.SIMDs},
+			{"vramBytes", d.Memory.VRAM},
 			{"numaNode", wantNUMA},
-			{"computePartitionType", strings.ToLower(d.Partition.Mode)},
-			{"memoryPartitionType", strings.ToLower(d.Partition.NPSMode)},
+			{"computePartitionType", strings.ToLower(d.Partition.Compute)},
+			{"memoryPartitionType", strings.ToLower(d.Partition.Memory)},
 		}
 		for _, w := range want {
 			if fmt.Sprint(g[w.key]) != fmt.Sprint(w.want) {
-				failf("%s: %s = %q, want %q", dev.PCIBDF, w.key, fmt.Sprint(g[w.key]), fmt.Sprint(w.want))
+				failf("%s: %s = %q, want %q", dev.BDF, w.key, fmt.Sprint(g[w.key]), fmt.Sprint(w.want))
 			}
 		}
-		root, err := pcieRoot(dev.PCIBDF)
+		root, err := pcieRoot(dev.BDF)
 		if err != nil {
-			failf("%s: pcieRoot: %v", dev.PCIBDF, err)
+			failf("%s: pcieRoot: %v", dev.BDF, err)
 		} else if root != wantRoot {
-			failf("%s: pcieRoot = %q, want %q", dev.PCIBDF, root, wantRoot)
+			failf("%s: pcieRoot = %q, want %q", dev.BDF, root, wantRoot)
 		}
 		fmt.Printf("  ok   %s card%v renderD%v %v cu=%v vram=%v numa=%v root=%s driver=%v\n",
-			dev.PCIBDF, g["card"], g["renderD"], g["productName"], g["cuCount"],
+			dev.BDF, g["card"], g["renderD"], g["productName"], g["cuCount"],
 			g["vramBytes"], g["numaNode"], root, g["driverVersion"])
 	}
 	return fails
@@ -161,27 +161,19 @@ func pcieRoot(bdf string) (string, error) {
 	return strings.Split(strings.TrimPrefix(target, "devices/"), "/")[0], nil
 }
 
-func rootComplex(p *kfd.Profile, bdf string) (string, int) {
-	for _, rc := range p.PCIETopology.RootComplexes {
-		for _, d := range rc.Devices {
-			if d == bdf {
-				return rc.ID, rc.NUMANode
-			}
-		}
+func rootComplex(p *profile.Profile, bdf string) (string, int) {
+	if rc, ok := p.Root(bdf); ok {
+		return rc.ID, rc.NUMA
 	}
 	return "", -1
 }
 
-func loadProfile(path string) *kfd.Profile {
-	data, err := os.ReadFile(path)
+func loadProfile(path string) *profile.Profile {
+	p, err := profile.Load(path)
 	if err != nil {
 		fatalf("%v", err)
 	}
-	var p kfd.Profile
-	if err := yaml.Unmarshal(data, &p); err != nil {
-		fatalf("%s: %v", path, err)
-	}
-	return &p
+	return p
 }
 
 func usage() {

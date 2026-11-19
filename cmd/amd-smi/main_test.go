@@ -8,7 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/fleet"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
+	"github.com/mesutoezdil/fake-gpu/pkg/sysfs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,17 +19,17 @@ func TestCLIReportsAgentState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var p kfd.Profile
+	var p profile.Profile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	if err := kfd.NewRenderer(&p, root).RenderAll(); err != nil {
+	if err := sysfs.New(&p, root).Render(); err != nil {
 		t.Fatal(err)
 	}
-	g, _ := kfd.NewFleetState(&p, "mi300x").GetGPU(1)
-	g.Status, g.Throttled, g.RetiredPages, g.TemperatureC = "throttling", true, 3, 77
-	if err := kfd.NewRenderer(&p, root).WriteSMIState(&g); err != nil {
+	g, _ := fleet.New(&p, "mi300x").Get(1)
+	g.Status, g.Throttled, g.RetiredPages, g.TempC = "throttling", true, 3, 77
+	if err := sysfs.New(&p, root).SMI(&g); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("MOCK_AMDSMI_STATE_DIR", filepath.Join(root, "smi"))

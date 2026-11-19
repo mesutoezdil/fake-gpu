@@ -28,7 +28,7 @@ jobs:
       - name: Chart configuration contracts
         run: test/chart/dra.sh
       - name: Renderer contract tests
-        run: go test ./pkg/gpu/kfd
+        run: go test ./pkg/profile ./pkg/sysfs
       - name: AMD DRA driver discovery, all profiles
         run: test/container/dra_discovery/run.sh
       - name: AMD DRA driver discovery, MI300X DPX/NPS2

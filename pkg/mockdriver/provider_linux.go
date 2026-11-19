@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
 	"golang.org/x/sys/unix"
 )
 
@@ -67,16 +67,16 @@ func New(root, hostDev, helper string) (*Provider, error) {
 // Reconcile supports the main renderer's physical and fixed partition inventory.
 // Registration is kernel-backed; majors are never guessed or borrowed from a
 // real GPU. One major is reserved by KFD and shared by all this provider's nodes.
-func (p *Provider) Reconcile(profile *kfd.Profile) error {
+func (p *Provider) Reconcile(prof *profile.Profile) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	wanted := map[uint32][]string{255: {"kfd"}}
-	for _, dev := range profile.Devices {
-		if dev.Index < 0 || dev.Index >= 64 || dev.DRMRenderMinor != 128+dev.Index {
+	for _, dev := range prof.Devices {
+		if dev.Index < 0 || dev.Index >= 64 || dev.RenderMinor != 128+dev.Index {
 			return fmt.Errorf("CUSE requires contiguous DRM indices below 64")
 		}
 		wanted[uint32(dev.Index)] = []string{fmt.Sprintf("dri/card%d", dev.Index)}
-		wanted[uint32(dev.DRMRenderMinor)] = []string{fmt.Sprintf("dri/renderD%d", dev.DRMRenderMinor)}
+		wanted[uint32(dev.RenderMinor)] = []string{fmt.Sprintf("dri/renderD%d", dev.RenderMinor)}
 	}
 	if _, ok := p.endpoints[255]; !ok {
 		if err := p.start(255, wanted[255]); err != nil {

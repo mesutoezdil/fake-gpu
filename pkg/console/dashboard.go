@@ -1,9 +1,9 @@
-package kfd
+package console
 
-// dashboardHTML is the single-page console served at "/". It polls the API,
+// page is the single-page console served at "/". It polls the API,
 // keeps a short client-side history per card for the sparklines, and sends
 // fault actions back. No build step and no external assets.
-const dashboardHTML = `<!DOCTYPE html>
+const page = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">

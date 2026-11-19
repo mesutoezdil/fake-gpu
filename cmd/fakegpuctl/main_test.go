@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/console"
+	"github.com/mesutoezdil/fake-gpu/pkg/fleet"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
+	"github.com/mesutoezdil/fake-gpu/pkg/sysfs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,12 +21,12 @@ func TestCtlDrivesTheRealAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var p kfd.Profile
+	var p profile.Profile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		t.Fatal(err)
 	}
-	state := kfd.NewFleetState(&p, "mi300x")
-	server := httptest.NewServer(kfd.NewAPIServer(state, nil))
+	state := fleet.New(&p, "mi300x")
+	server := httptest.NewServer(console.New(state, nil))
 	defer server.Close()
 	call := func(want int, args ...string) string {
 		t.Helper()
@@ -37,11 +40,11 @@ func TestCtlDrivesTheRealAPI(t *testing.T) {
 	if got := call(0, "retire-page", "-gpu", "2", "count=3"); !strings.Contains(got, "GPU 2: page_retired") {
 		t.Fatalf("action output %q", got)
 	}
-	if g, _ := state.GetGPU(2); g.RetiredPages != 3 {
+	if g, _ := state.Get(2); g.RetiredPages != 3 {
 		t.Fatalf("count=3 did not reach the API: %+v", g)
 	}
 	call(0, "busy", "-gpu", "0", "util=77")
-	if g, _ := state.GetGPU(0); g.TargetUtilPct != 77 {
+	if g, _ := state.Get(0); g.TargetUtil != 77 {
 		t.Fatalf("util=77 did not reach the API: %+v", g)
 	}
 	list := call(0, "list")
@@ -64,15 +67,15 @@ func TestScenarioRunsFaultsAndChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var p kfd.Profile
+	var p profile.Profile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		t.Fatal(err)
 	}
-	state := kfd.NewFleetState(&p, "mi300x")
-	sim := kfd.NewDynamicSimulator(state)
-	sim.Start(5)
+	state := fleet.New(&p, "mi300x")
+	sim := fleet.NewSimulator(state)
+	sim.Start(5 * time.Millisecond)
 	defer sim.Stop()
-	server := httptest.NewServer(kfd.NewAPIServer(state, nil))
+	server := httptest.NewServer(console.New(state, nil))
 	defer server.Close()
 
 	write := func(body string) string {
@@ -135,12 +138,12 @@ func TestExecHoldsTheCardBusyWhileTheCommandRuns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var p kfd.Profile
+	var p profile.Profile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		t.Fatal(err)
 	}
-	state := kfd.NewFleetState(&p, "mi300x")
-	server := httptest.NewServer(kfd.NewAPIServer(state, nil))
+	state := fleet.New(&p, "mi300x")
+	server := httptest.NewServer(console.New(state, nil))
 	defer server.Close()
 
 	marker := filepath.Join(t.TempDir(), "started")
@@ -159,13 +162,13 @@ func TestExecHoldsTheCardBusyWhileTheCommandRuns(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if g, _ := state.GetGPU(3); g.TargetUtilPct != 80 {
+	if g, _ := state.Get(3); g.TargetUtil != 80 {
 		t.Fatalf("card not busy while the command runs: %+v", g)
 	}
 	if code := <-done; code != 3 {
 		t.Fatalf("exit code %d, want the command's 3", code)
 	}
-	if g, _ := state.GetGPU(3); g.TargetUtilPct != 0 {
+	if g, _ := state.Get(3); g.TargetUtil != 0 {
 		t.Fatalf("card left busy after the command: %+v", g)
 	}
 
@@ -173,7 +176,7 @@ func TestExecHoldsTheCardBusyWhileTheCommandRuns(t *testing.T) {
 	if code := run([]string{"-api", server.URL, "exec", "-gpu", "3", "--", "/no/such/binary"}, &out, &errOut); code != 127 {
 		t.Fatalf("missing binary: exit %d", code)
 	}
-	if g, _ := state.GetGPU(3); g.TargetUtilPct != 0 {
+	if g, _ := state.Get(3); g.TargetUtil != 0 {
 		t.Fatal("card left busy after a command that could not start")
 	}
 	if code := run([]string{"-api", server.URL, "exec", "-gpu", "3"}, &out, &errOut); code != 2 {
@@ -186,20 +189,20 @@ func TestScenarioChecksRenderedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var p kfd.Profile
+	var p profile.Profile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	renderer := kfd.NewRenderer(&p, root)
-	if err := renderer.RenderAll(); err != nil {
+	renderer := sysfs.New(&p, root)
+	if err := renderer.Render(); err != nil {
 		t.Fatal(err)
 	}
-	state := kfd.NewFleetState(&p, "mi300x")
-	sim := kfd.NewDynamicSimulator(state)
-	sim.Start(5)
+	state := fleet.New(&p, "mi300x")
+	sim := fleet.NewSimulator(state)
+	sim.Start(5 * time.Millisecond)
 	defer sim.Stop()
-	server := httptest.NewServer(kfd.NewAPIServer(state, renderer))
+	server := httptest.NewServer(console.New(state, renderer))
 	defer server.Close()
 	t.Setenv("FAKE_GPU_STATE_DIR", root)
 

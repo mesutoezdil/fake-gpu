@@ -7,22 +7,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
+	"github.com/mesutoezdil/fake-gpu/pkg/sysfs"
 	"gopkg.in/yaml.v3"
 )
 
-func renderedRoot(t *testing.T, slug string) (string, *kfd.Profile) {
+func renderedRoot(t *testing.T, slug string) (string, *profile.Profile) {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("..", "..", "profiles", slug+".yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var profile kfd.Profile
+	var profile profile.Profile
 	if err := yaml.Unmarshal(data, &profile); err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	if err := kfd.NewRenderer(&profile, root).RenderAll(); err != nil {
+	if err := sysfs.New(&profile, root).Render(); err != nil {
 		t.Fatal(err)
 	}
 	return root, &profile
@@ -48,12 +49,12 @@ func TestCapturesRenderedTreeToFile(t *testing.T) {
 	if !strings.HasPrefix(string(data), header) {
 		t.Fatalf("output starts %q, want %q", strings.SplitN(string(data), "\n", 2)[0], header)
 	}
-	var got kfd.Profile
+	var got profile.Profile
 	if err := yaml.Unmarshal(data, &got); err != nil {
 		t.Fatalf("captured profile does not parse: %v", err)
 	}
-	if len(got.Devices) != len(want.Devices) || got.DeviceDefault.Name != "Test Card" {
-		t.Fatalf("captured %d devices named %q, want %d named Test Card", len(got.Devices), got.DeviceDefault.Name, len(want.Devices))
+	if len(got.Devices) != len(want.Devices) || got.Card.Name != "Test Card" {
+		t.Fatalf("captured %d devices named %q, want %d named Test Card", len(got.Devices), got.Card.Name, len(want.Devices))
 	}
 }
 
@@ -104,7 +105,7 @@ func TestHelpExitsZero(t *testing.T) {
 }
 
 func TestFormatListsNotes(t *testing.T) {
-	text, err := format(&kfd.Profile{Devices: make([]kfd.DeviceConfig, 2)}, []string{"first", "second"})
+	text, err := format(&profile.Profile{Devices: make([]profile.Device, 2)}, []string{"first", "second"})
 	if err != nil {
 		t.Fatal(err)
 	}

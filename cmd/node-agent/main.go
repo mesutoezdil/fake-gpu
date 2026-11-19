@@ -1,3 +1,5 @@
+// node-agent renders a node's mock AMD GPUs, serves their API and console,
+// and keeps their telemetry moving until it is told to stop.
 package main
 
 import (
@@ -9,284 +11,234 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/cdi"
+	"github.com/mesutoezdil/fake-gpu/pkg/console"
+	"github.com/mesutoezdil/fake-gpu/pkg/fleet"
 	"github.com/mesutoezdil/fake-gpu/pkg/mockdriver"
-	"gopkg.in/yaml.v3"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
+	"github.com/mesutoezdil/fake-gpu/pkg/sysfs"
 )
 
+type config struct {
+	profile, profiles, root, api, partition, backend, kernelLog, cuseDev string
+}
+
 func main() {
-	configPath := flag.String("config", "/etc/fake-gpu/config.yaml", "path to GPU profile config")
-	profilesDir := flag.String("profiles", "/etc/fake-gpu/profiles", "directory containing all GPU profile YAML files")
-	rootDir := flag.String("root", "/var/lib/fake-gpu", "root directory for staged surfaces")
-	apiAddr := flag.String("api", ":8080", "address for the status/control API and dashboard")
-	partitionMode := flag.String("partition", "SPX", "fixed startup compute partition: SPX or MI300X DPX/NPS2")
-	backend := flag.String("device-backend", "nodes", "device backend: nodes or cuse (requires optional driver image)")
-	kernelLog := flag.String("kernel-log", "", "append a line per fault transition to this file; /dev/kmsg writes to the real kernel log")
-	cuseDev := flag.String("cuse-host-dev", "/dev", "host device directory for the CUSE backend")
+	var c config
+	flag.StringVar(&c.profile, "config", "/etc/fake-gpu/config.yaml", "path to GPU profile config")
+	flag.StringVar(&c.profiles, "profiles", "/etc/fake-gpu/profiles", "directory containing all GPU profile YAML files")
+	flag.StringVar(&c.root, "root", "/var/lib/fake-gpu", "root directory for staged surfaces")
+	flag.StringVar(&c.api, "api", ":8080", "address for the status/control API and dashboard")
+	flag.StringVar(&c.partition, "partition", "SPX", "fixed startup compute partition: SPX or MI300X DPX/NPS2")
+	flag.StringVar(&c.backend, "device-backend", "nodes", "device backend: nodes or cuse (requires optional driver image)")
+	flag.StringVar(&c.kernelLog, "kernel-log", "", "append a line per fault transition to this file; /dev/kmsg writes to the real kernel log")
+	flag.StringVar(&c.cuseDev, "cuse-host-dev", "/dev", "host device directory for the CUSE backend")
 	flag.Parse()
-	if *backend != "nodes" && *backend != "cuse" {
-		log.Fatal("device-backend must be nodes or cuse")
-	}
-
-	log.Printf("fake-gpu node agent starting")
-	log.Printf("config: %s", *configPath)
-	log.Printf("root:   %s", *rootDir)
-
-	data, err := os.ReadFile(*configPath)
-	if err != nil {
-		log.Fatalf("reading config: %v", err)
-	}
-
-	var profile kfd.Profile
-	if err := yaml.Unmarshal(data, &profile); err != nil {
-		log.Fatalf("parsing config: %v", err)
-	}
-
-	partitioned, err := kfd.PartitionProfile(&profile, *partitionMode)
-	if err != nil {
-		log.Fatalf("partition configuration: %v", err)
-	}
-	profile = *partitioned
-
-	log.Printf("profile: %s (%d GPUs, %s)",
-		profile.DeviceDefault.Name,
-		len(profile.Devices),
-		profile.DeviceDefault.Architecture)
-
-	renderer := kfd.NewRenderer(&profile, *rootDir)
-	renderer.SetKernelLog(*kernelLog)
-
-	var provider *mockdriver.Provider
-	if *backend == "cuse" {
-		provider, err = mockdriver.New(*rootDir, *cuseDev, "mock-device")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer provider.Close()
-		renderer.SetDeviceBackend(provider)
-	}
-
-	if err := renderer.RenderAll(); err != nil {
-		if provider != nil {
-			provider.Close()
-		}
-		log.Fatalf("rendering surfaces: %v", err)
-	}
-
-	// Stage the mock library to the host overlay so other containers can use it.
-	libSrc := "/usr/lib64/libamd_smi.so"
-	libDst := filepath.Join(*rootDir, "driver/usr/lib64/libamd_smi.so")
-	if data, err := os.ReadFile(libSrc); err == nil {
-		os.MkdirAll(filepath.Dir(libDst), 0o755)
-		os.WriteFile(libDst, data, 0o755)
-		// Also create versioned symlink
-		os.Symlink("libamd_smi.so", filepath.Join(filepath.Dir(libDst), "libamd_smi.so.27"))
-		log.Printf("mock library staged: %s -> %s", libSrc, libDst)
-	} else {
-		log.Printf("warning: mock library not found at %s (non-fatal)", libSrc)
-	}
-
-	// The HIP shim and its header are staged next to it for workload containers.
-	for src, dst := range map[string]string{
-		"/usr/lib64/libfakehip.so": "driver/usr/lib64/libfakehip.so",
-		"/usr/include/fakehip.h":   "driver/usr/include/fakehip.h",
-	} {
-		if data, err := os.ReadFile(src); err == nil {
-			target := filepath.Join(*rootDir, dst)
-			os.MkdirAll(filepath.Dir(target), 0o755)
-			os.WriteFile(target, data, 0o755)
-		}
-	}
-
-	if provider != nil {
-		src := "/opt/fake-gpu/lib/libdrm_amdgpu.so.1"
-		dst := filepath.Join(*rootDir, "driver/usr/lib64/libdrm_amdgpu.so.1")
-		data, err := os.ReadFile(src)
-		if err != nil {
-			provider.Close()
-			log.Fatal(err)
-		}
-		if err := os.WriteFile(dst, data, 0755); err != nil {
-			provider.Close()
-			log.Fatal(err)
-		}
-	}
-	log.Printf("all surfaces staged at %s", *rootDir)
-	log.Printf("kfd topology: %s/sys/class/kfd/kfd/topology/", *rootDir)
-	log.Printf("device nodes: %s/dev/", *rootDir)
-	log.Printf("pci sysfs:    %s/sys/bus/pci/devices/", *rootDir)
-	log.Printf("driver module: %s/sys/module/amdgpu/", *rootDir)
-
-	// Generate CDI spec for container device injection.
-	// Written to both the mock root and /etc/cdi/ so the AMD container runtime
-	// (amd-container-runtime) finds it when resolving CDI device references.
-	cdiSpec := kfd.GenerateCDISpec(&profile, *rootDir)
-	cdiPath := filepath.Join(*rootDir, "cdi/amd.json")
-	if err := kfd.WriteCDISpec(cdiSpec, cdiPath); err != nil {
-		log.Printf("warning: CDI spec generation failed: %v", err)
-	} else {
-		log.Printf("CDI spec:     %s (%d devices)", cdiPath, len(cdiSpec.Devices))
-	}
-	// Also write to /etc/cdi/ for the containerd CDI runtime path
-	if err := kfd.WriteCDISpec(cdiSpec, "/etc/cdi/amd.json"); err != nil {
-		log.Printf("warning: CDI spec at /etc/cdi/ failed (non-fatal): %v", err)
-	} else {
-		log.Printf("CDI spec:     /etc/cdi/amd.json (for amd-container-runtime)")
-	}
-	// And /var/run/cdi/ as fallback
-	if err := kfd.WriteCDISpec(cdiSpec, "/var/run/cdi/amd.json"); err != nil {
-		log.Printf("warning: CDI spec at /var/run/cdi/ failed (non-fatal): %v", err)
-	}
-
-	// Create device nodes with mknod if running as root.
-	if os.Getuid() == 0 && provider == nil {
-		renderer.SetHostDevDir("/dev")
-		if err := createDeviceNodes(&profile, *rootDir); err != nil {
-			log.Printf("warning: device node creation in mock root failed (non-fatal): %v", err)
-		}
-		// Also create device nodes at the real /dev on the host.
-		// The device plugin tells kubelet to expose /dev/kfd and
-		// /dev/dri/renderD* to workload containers. Those paths must
-		// exist on the host for kubelet's device mount to succeed.
-		if err := createDeviceNodes(&profile, ""); err != nil {
-			log.Printf("warning: device node creation in /dev failed (non-fatal): %v", err)
-		}
-	}
-
-	initialSlug := profileSlug(*configPath)
-
-	// Start the API server for the dashboard and runtime control.
-	state := kfd.NewFleetState(&profile, initialSlug)
-	if err := state.LoadProfiles(*profilesDir); err != nil {
-		log.Printf("warning: loading profile catalog from %s: %v", *profilesDir, err)
-	} else {
-		// Helm mounts every selected profile as config.yaml. Bind API state to
-		// its actual catalog slug rather than treating every profile as MI300X.
-		if filepath.Base(*configPath) == "config.yaml" {
-			for slug, catalogProfile := range state.Profiles {
-				if catalogProfile.DeviceDefault.Name == profile.DeviceDefault.Name {
-					for i := range state.GPUs {
-						state.GPUs[i].ProfileSlug = slug
-					}
-					state.Profiles[slug] = &profile
-					break
-				}
-			}
-		}
-		log.Printf("loaded %d profiles from %s", len(state.ProfileCatalog), *profilesDir)
-	}
-	sim := kfd.NewDynamicSimulator(state, func(gpu *kfd.GPUState) {
-		if err := renderer.WriteSMIState(gpu); err != nil {
-			log.Printf("warning: AMD SMI state sync: %v", err)
-		}
-		if err := renderer.WriteTelemetrySysfs(gpu); err != nil {
-			log.Printf("warning: sysfs telemetry sync: %v", err)
-		}
-	})
-	// HIP clients publish their allocations here; any user may be the client.
-	hipDir := filepath.Join(*rootDir, "hip")
-	if err := os.MkdirAll(hipDir, 0o1777); err == nil {
-		os.Chmod(hipDir, 0o1777)
-	}
-	sim.TrackHIP(*rootDir)
-	sim.Start(1000)
-	defer sim.Stop()
-
-	api := kfd.NewAPIServer(state, renderer)
-	go func() {
-		if err := api.Start(*apiAddr); err != nil {
-			log.Printf("API server error: %v", err)
-		}
-	}()
-	log.Printf("dashboard: http://localhost%s", *apiAddr)
-
-	// Wait for termination signal, then clean up.
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
-	var deviceErrors <-chan error
-	if provider != nil {
-		deviceErrors = provider.Errors
-	}
-	var backendErr error
-	select {
-	case s := <-sig:
-		log.Printf("received %v, cleaning up", s)
-	case backendErr = <-deviceErrors:
-		log.Printf("device backend failure: %v", backendErr)
-	}
-	if provider != nil {
-		provider.Close()
-	}
-
-	// These hostPath directories are mounted by the exporter and allocators.
-	// Removing them here strands existing consumers on unlinked directory inodes
-	// during a rolling update. The next agent reconciles inventory in place;
-	// cluster teardown owns final removal of the persistent staging directory.
-	log.Printf("preserving staged surfaces for mounted consumers across restart")
-	log.Printf("shutdown complete")
-	if backendErr != nil {
-		os.Exit(1)
+	if err := run(c); err != nil {
+		log.Fatal(err)
 	}
 }
 
-// profileSlug derives the profile slug from the config filename, e.g. "mi300x"
-// from ".../mi300x.yaml". Helm mounts every profile as config.yaml; that name
-// starts as mi300x until the catalog lookup binds the real slug.
-func profileSlug(configPath string) string {
-	slug := strings.TrimSuffix(filepath.Base(configPath), filepath.Ext(configPath))
+func run(c config) error {
+	if c.backend != "nodes" && c.backend != "cuse" {
+		return fmt.Errorf("device-backend must be nodes or cuse")
+	}
+	log.Printf("fake-gpu node agent starting: config %s, root %s", c.profile, c.root)
+	boot, err := profile.Load(c.profile)
+	if err != nil {
+		return fmt.Errorf("reading config: %w", err)
+	}
+	p, err := profile.Partition(boot, c.partition)
+	if err != nil {
+		return fmt.Errorf("partition configuration: %w", err)
+	}
+	log.Printf("profile: %s (%d GPUs, %s)", p.Card.Name, len(p.Devices), p.Card.Architecture)
+
+	tree := sysfs.New(p, c.root)
+	tree.SetKernelLog(c.kernelLog)
+	var provider *mockdriver.Provider
+	if c.backend == "cuse" {
+		if provider, err = mockdriver.New(c.root, c.cuseDev, "mock-device"); err != nil {
+			return err
+		}
+		defer provider.Close()
+		tree.SetBackend(provider)
+	}
+	if err := tree.Render(); err != nil {
+		return fmt.Errorf("rendering surfaces: %w", err)
+	}
+	if err := stage(c.root, provider != nil); err != nil {
+		return err
+	}
+	log.Printf("surfaces staged at %s: sys/class/kfd, sys/module/amdgpu, sys/bus/pci, dev, smi", c.root)
+	writeCDI(p, c.root)
+	if os.Getuid() == 0 && provider == nil {
+		// kubelet mounts /dev/kfd and the render nodes the device plugin
+		// names, so they must exist on the host as well as in the root.
+		tree.SetHostDev("/dev")
+		for _, dir := range []string{c.root, ""} {
+			if err := createDeviceNodes(p, dir); err != nil {
+				log.Printf("warning: device nodes in %q: %v", dir+"/dev", err)
+			}
+		}
+	}
+
+	f := gpus(p, c)
+	sim := fleet.NewSimulator(f)
+	sim.OnTick = func(g *fleet.GPU) {
+		if err := tree.SMI(g); err != nil {
+			log.Printf("warning: AMD SMI state sync: %v", err)
+		}
+		if err := tree.Telemetry(g); err != nil {
+			log.Printf("warning: sysfs telemetry sync: %v", err)
+		}
+	}
+	// HIP clients publish their allocations here, as any user.
+	hip := filepath.Join(c.root, "hip")
+	if err := os.MkdirAll(hip, 0o1777); err == nil {
+		os.Chmod(hip, 0o1777)
+	}
+	sim.TrackHIP(c.root)
+	sim.Start(time.Second)
+	defer sim.Stop()
+
+	go func() {
+		if err := console.New(f, tree).ListenAndServe(c.api); err != nil {
+			log.Printf("API server error: %v", err)
+		}
+	}()
+	log.Printf("dashboard: http://localhost%s", c.api)
+	return wait(provider)
+}
+
+// gpus boots the fleet. Helm mounts the selected profile as config.yaml, so
+// the catalog entry with the same model names it; otherwise the file does.
+func gpus(p *profile.Profile, c config) *fleet.Fleet {
+	slug := profileSlug(c.profile)
+	catalog, err := profile.LoadDir(c.profiles)
+	if err != nil {
+		log.Printf("warning: loading profile catalog from %s: %v", c.profiles, err)
+		return fleet.New(p, slug)
+	}
+	if filepath.Base(c.profile) == "config.yaml" {
+		for _, s := range catalog.Slugs {
+			if catalog.Profiles[s].Card.Name == p.Card.Name {
+				slug = s
+				break
+			}
+		}
+	}
+	f := fleet.New(p, slug)
+	f.AddCatalog(catalog)
+	log.Printf("loaded %d profiles from %s", len(catalog.Slugs), c.profiles)
+	return f
+}
+
+// profileSlug is the profile's file name without extension, "mi300x" for
+// ".../mi300x.yaml". config.yaml counts as mi300x until the catalog says
+// otherwise.
+func profileSlug(path string) string {
+	slug := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	if slug == "config" {
 		return "mi300x"
 	}
 	return slug
 }
 
-func createDeviceNodes(profile *kfd.Profile, rootDir string) error {
-	var devDir string
-	if rootDir == "" {
-		devDir = "/dev"
+// stage copies the mock libraries to the root, where workload containers
+// mount them from. The CUSE backend also needs its libdrm.
+func stage(root string, cuse bool) error {
+	lib := filepath.Join(root, "driver/usr/lib64")
+	if err := copyFile("/usr/lib64/libamd_smi.so", filepath.Join(lib, "libamd_smi.so")); err != nil {
+		log.Printf("warning: mock AMD SMI library not staged: %v", err)
 	} else {
-		devDir = rootDir + "/dev"
+		os.Symlink("libamd_smi.so", filepath.Join(lib, "libamd_smi.so.27"))
 	}
-
-	// /dev/kfd: major 234 (common), minor 0
-	kfdPath := devDir + "/kfd"
-	if err := os.MkdirAll(filepath.Dir(kfdPath), 0o755); err != nil {
-		return err
+	// The HIP shim is optional: images without it run fine.
+	copyFile("/usr/lib64/libfakehip.so", filepath.Join(lib, "libfakehip.so"))
+	copyFile("/usr/include/fakehip.h", filepath.Join(root, "driver/usr/include/fakehip.h"))
+	if cuse {
+		return copyFile("/opt/fake-gpu/lib/libdrm_amdgpu.so.1", filepath.Join(lib, "libdrm_amdgpu.so.1"))
 	}
-	os.Remove(kfdPath)
-	if err := syscall.Mknod(kfdPath, syscall.S_IFCHR|0o660, int(makedev(234, 0))); err != nil {
-		return fmt.Errorf("mknod %s: %w", kfdPath, err)
-	}
-	log.Printf("created %s (234:0)", kfdPath)
-
-	// /dev/dri/renderDN: major 226, minor 128+N
-	// /dev/dri/cardN: major 226, minor N (device plugin exposes both)
-	driDir := devDir + "/dri"
-	if err := os.MkdirAll(driDir, 0o755); err != nil {
-		return err
-	}
-	for _, dev := range profile.Devices {
-		renderPath := fmt.Sprintf("%s/renderD%d", driDir, dev.DRMRenderMinor)
-		os.Remove(renderPath)
-		minor := uint32(dev.DRMRenderMinor)
-		if err := syscall.Mknod(renderPath, syscall.S_IFCHR|0o660, int(makedev(226, minor))); err != nil {
-			return fmt.Errorf("mknod %s: %w", renderPath, err)
-		}
-		log.Printf("created %s (226:%d)", renderPath, minor)
-
-		cardPath := fmt.Sprintf("%s/card%d", driDir, dev.Index)
-		os.Remove(cardPath)
-		if err := syscall.Mknod(cardPath, syscall.S_IFCHR|0o660, int(makedev(226, uint32(dev.Index)))); err != nil {
-			log.Printf("warning: mknod %s: %v", cardPath, err)
-		} else {
-			log.Printf("created %s (226:%d)", cardPath, dev.Index)
-		}
-	}
-
 	return nil
 }
 
-func makedev(major, minor uint32) uint64 {
-	return uint64(major)<<8 | uint64(minor)
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o755)
 }
+
+// writeCDI puts the CDI spec in the root and where container runtimes look:
+// /etc/cdi for amd-container-runtime, /var/run/cdi as the fallback.
+func writeCDI(p *profile.Profile, root string) {
+	spec := cdi.Generate(p, root)
+	for _, path := range []string{filepath.Join(root, "cdi/amd.json"), "/etc/cdi/amd.json", "/var/run/cdi/amd.json"} {
+		if err := spec.Write(path); err != nil {
+			log.Printf("warning: CDI spec %s: %v", path, err)
+		} else {
+			log.Printf("CDI spec %s (%d devices)", path, len(spec.Devices))
+		}
+	}
+}
+
+// wait blocks until a stop signal or a backend failure. The staged tree is
+// left in place: exporters and allocators have its directories mounted, and
+// the next agent reconciles it.
+func wait(provider *mockdriver.Provider) error {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
+	var failed <-chan error
+	if provider != nil {
+		failed = provider.Errors
+	}
+	select {
+	case s := <-sig:
+		log.Printf("received %v; keeping staged surfaces for mounted consumers", s)
+		return nil
+	case err := <-failed:
+		return fmt.Errorf("device backend failure: %w", err)
+	}
+}
+
+// createDeviceNodes makes /dev/kfd and the card and render nodes under
+// root/dev, or /dev itself for an empty root.
+func createDeviceNodes(p *profile.Profile, root string) error {
+	if root == "" {
+		root = "/"
+	}
+	dev := filepath.Join(root, "dev")
+	if err := os.MkdirAll(filepath.Join(dev, "dri"), 0o755); err != nil {
+		return err
+	}
+	if err := mknod(filepath.Join(dev, "kfd"), 234, 0); err != nil {
+		return err
+	}
+	for _, d := range p.Devices {
+		if err := mknod(filepath.Join(dev, fmt.Sprintf("dri/renderD%d", d.RenderMinor)), 226, uint32(d.RenderMinor)); err != nil {
+			return err
+		}
+		if err := mknod(filepath.Join(dev, fmt.Sprintf("dri/card%d", d.Index)), 226, uint32(d.Index)); err != nil {
+			log.Printf("warning: %v", err)
+		}
+	}
+	return nil
+}
+
+// mknod replaces whatever is at path with a character device.
+func mknod(path string, major, minor uint32) error {
+	os.Remove(path)
+	if err := syscall.Mknod(path, syscall.S_IFCHR|0o660, int(makedev(major, minor))); err != nil {
+		return fmt.Errorf("mknod %s: %w", path, err)
+	}
+	return nil
+}
+
+func makedev(major, minor uint32) uint64 { return uint64(major)<<8 | uint64(minor) }

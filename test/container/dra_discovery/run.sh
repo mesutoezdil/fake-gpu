@@ -47,12 +47,14 @@ echo "    commit $(git -C "$WORK/dra" rev-parse HEAD)"
 
 echo "==> Building probe (GOPATH mode)"
 GP="$WORK/gopath/src"
-mkdir -p "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg" "$GP/github.com/golang" "$GP/gopkg.in" "$GP/fakegpu" "$GP/probe"
+FG="$GP/github.com/mesutoezdil/fake-gpu/pkg"
+mkdir -p "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg" "$GP/github.com/golang" "$GP/gopkg.in" "$FG" "$GP/probe"
 cp -r "$WORK/dra/pkg/amdgpu" "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg/"
 [ -d "$WORK/dra/pkg/consts" ] && cp -r "$WORK/dra/pkg/consts" "$GP/github.com/ROCm/k8s-gpu-dra-driver/pkg/"
 cp -r "$WORK/dra/vendor/github.com/golang/glog" "$GP/github.com/golang/"
 cp -r "$WORK/dra/vendor/gopkg.in/yaml.v3" "$GP/gopkg.in/"
-cp -r "$REPO_ROOT/pkg/gpu/kfd" "$GP/fakegpu/"
+# The renderer and what it imports; none of them needs more than yaml.v3.
+for pkg in profile fleet smistate sysfs; do cp -r "$REPO_ROOT/pkg/$pkg" "$FG/"; done
 cp "$REPO_ROOT/test/container/dra_discovery/probe/main.go" "$GP/probe/"
 find "$GP" -name '*_test.go' -delete
 (cd "$GP/probe" && GO111MODULE=off GOPATH="$WORK/gopath" GOFLAGS='' GOTOOLCHAIN=local \

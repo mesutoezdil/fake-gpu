@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
 	"golang.org/x/sys/unix"
 )
 
@@ -25,7 +25,7 @@ func TestCreateDeviceNodes(t *testing.T) {
 		t.Skip("mknod needs root")
 	}
 	root := t.TempDir()
-	profile := &kfd.Profile{Devices: []kfd.DeviceConfig{{Index: 0, DRMRenderMinor: 128}, {Index: 1, DRMRenderMinor: 129}}}
+	profile := &profile.Profile{Devices: []profile.Device{{Index: 0, RenderMinor: 128}, {Index: 1, RenderMinor: 129}}}
 	// A stale plain file where a node belongs is replaced, not kept.
 	if err := os.MkdirAll(filepath.Join(root, "dev/dri"), 0o755); err != nil {
 		t.Fatal(err)
@@ -38,7 +38,7 @@ func TestCreateDeviceNodes(t *testing.T) {
 	}
 	want := map[string][2]uint32{"kfd": {234, 0}}
 	for _, d := range profile.Devices {
-		want[fmt.Sprintf("dri/renderD%d", d.DRMRenderMinor)] = [2]uint32{226, uint32(d.DRMRenderMinor)}
+		want[fmt.Sprintf("dri/renderD%d", d.RenderMinor)] = [2]uint32{226, uint32(d.RenderMinor)}
 		want[fmt.Sprintf("dri/card%d", d.Index)] = [2]uint32{226, uint32(d.Index)}
 	}
 	for rel, dev := range want {
