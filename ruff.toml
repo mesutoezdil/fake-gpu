@@ -1,0 +1,14 @@
+# Lint for the Python checks, demos and helper scripts. Long lines are allowed:
+# the checks inline Kubernetes objects and shell snippets.
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "B", "I", "EXE", "PLW1510", "RUF100"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# Checks put tests/lib on sys.path before importing the shared helpers.
+"tests/**/*.py" = ["E402"]
+
+[lint.isort]
+known-first-party = ["e2e"]

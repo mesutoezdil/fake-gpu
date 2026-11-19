@@ -26,7 +26,7 @@ def stage():
         destination = STAGE / ('repository.md' if source == ROOT / 'README.md' else source.relative_to(ROOT))
         destination.parent.mkdir(parents=True, exist_ok=True)
         if source.suffix == '.md':
-            def rewrite(match):
+            def rewrite(match, source=source, destination=destination):
                 target = match[2]
                 parsed = urlsplit(target)
                 if parsed.scheme or parsed.netloc or target.startswith('#'):
