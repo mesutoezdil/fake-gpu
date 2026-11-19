@@ -79,7 +79,9 @@ trap cleanup EXIT
 
 section "1. Preconditions"
 
-if kubectl api-resources --api-group=resource.k8s.io -o name 2>/dev/null | grep -q '^resourceslices'; then
+# Capture before grep: grep -q exiting early would fail the pipe under pipefail.
+resources="$(kubectl api-resources --api-group=resource.k8s.io -o name 2>/dev/null || true)"
+if grep -q '^resourceslices' <<< "$resources"; then
     pass "cluster serves resource.k8s.io (DRA)"
 else
     die "cluster does not serve resource.k8s.io; this release targets Kubernetes 1.37"
@@ -91,7 +93,7 @@ AGENT_NODES="$(kubectl get pods -A -l app.kubernetes.io/name=fake-gpu \
 pass "mock agent running on: $AGENT_NODES"
 
 # AMD's device plugin and DRA driver must not both hand out the same GPUs.
-if kubectl get ds -A -l app.kubernetes.io/component=device-plugin -o name 2>/dev/null | grep -q .; then
+if [ -n "$(kubectl get ds -A -l app.kubernetes.io/component=device-plugin -o name 2>/dev/null || true)" ]; then
     die "the mock chart's device plugin is running; reinstall with --set devicePlugin.enabled=false"
 fi
 pass "bundled device plugin disabled"
@@ -133,7 +135,7 @@ if kubectl rollout status -n "$DRA_NS" "ds/$DS" --timeout=300s >/dev/null; then
     pass "kubelet plugin $DS ready (driver-init found the mock driver)"
 else
     fail "kubelet plugin $DS not ready"
-    kubectl logs -n "$DRA_NS" "ds/$DS" --all-containers --tail=30 2>&1 | sed 's/^/    | /'
+    { kubectl logs -n "$DRA_NS" "ds/$DS" --all-containers --tail=30 2>&1 || true; } | sed 's/^/    | /'
 fi
 
 # ── 3. ResourceSlice ─────────────────────────────────────────────────────
@@ -183,7 +185,7 @@ if kubectl -n "$TEST_NS" wait pod/dra-gpu-demo --for=condition=Ready --timeout=1
     fi
 else
     fail "pod with a ResourceClaim did not start"
-    kubectl -n "$TEST_NS" describe pod dra-gpu-demo 2>&1 | tail -15 | sed 's/^/    | /'
+    { kubectl -n "$TEST_NS" describe pod dra-gpu-demo 2>&1 || true; } | tail -15 | sed 's/^/    | /'
 fi
 
 # ── 5. Selectors and reallocation ────────────────────────────────────────
@@ -207,16 +209,33 @@ sed -e 's/name: amd-mi300x/name: amd-no-match/' \
     -e 's/AMD_Instinct_MI300X_OAM/DOES_NOT_EXIST/' \
     "$REPO_ROOT/deployments/dra/demo.yaml" | kubectl -n "$TEST_NS" apply -f - >/dev/null
 make_pod dra-no-match amd-no-match
-sleep 10
+# Wait for the scheduler's verdict on the generated claim instead of a fixed
+# sleep, then keep watching that the claim stays unallocated.
+claim_of() { kubectl -n "$TEST_NS" get pod "$1" -o jsonpath='{.status.resourceClaimStatuses[0].resourceClaimName}' 2>/dev/null || true; }
+allocation_of() { kubectl -n "$TEST_NS" get resourceclaim "$1" -o jsonpath='{.status.allocation}' 2>/dev/null || true; }
+rejected=0
+claim=""
+for _ in $(seq 1 60); do
+    events="$(kubectl -n "$TEST_NS" get events -o jsonpath='{range .items[*]}{.reason} {.involvedObject.name}{"\n"}{end}')"
+    claim="$(claim_of dra-no-match)"
+    if [ -n "$claim" ] && grep -qx 'FailedScheduling dra-no-match' <<< "$events"; then
+        rejected=1
+        break
+    fi
+    sleep 1
+done
+for _ in 1 2 3 4 5; do
+    if [ "$rejected" = 1 ] && [ -n "$(allocation_of "$claim")" ]; then rejected=0; fi
+    sleep 1
+done
 phase="$(kubectl -n "$TEST_NS" get pod dra-no-match -o jsonpath='{.status.phase}')"
-claim="$(kubectl -n "$TEST_NS" get pod dra-no-match -o jsonpath='{.status.resourceClaimStatuses[0].resourceClaimName}')"
-if [ "$phase" = Pending ] && [ -n "$claim" ] && \
-    [ -z "$(kubectl -n "$TEST_NS" get resourceclaim "$claim" -o jsonpath='{.status.allocation}')" ]; then
+if [ "$rejected" = 1 ] && [ "$phase" = Pending ]; then
     pass "nonmatching selector stays Pending with an unallocated claim"
 else
-    fail "nonmatching selector unexpectedly allocated, or claim was not created"
+    fail "nonmatching selector: phase=$phase claim=${claim:-none} allocation=$(allocation_of "$claim")"
 fi
-claim="$(kubectl -n "$TEST_NS" get pod dra-gpu-demo -o jsonpath='{.status.resourceClaimStatuses[0].resourceClaimName}')"
+claim="$(claim_of dra-gpu-demo)"
+[ -n "$claim" ] || die "dra-gpu-demo has no generated claim; section 4 must pass first"
 allocated="$(kubectl -n "$TEST_NS" get resourceclaim "$claim" -o jsonpath='{.status.allocation.devices.results[0].device}')"
 pool="$(kubectl -n "$TEST_NS" get resourceclaim "$claim" -o jsonpath='{.status.allocation.devices.results[0].pool}')"
 kubectl get resourceslices -o json > "$WORK/slices.json"
@@ -270,5 +289,5 @@ fi
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
-[ "$KEEP" = "1" ] && echo "KEEP=1: AMD's DRA driver and the demo pod were left installed."
+if [ "$KEEP" = "1" ]; then echo "KEEP=1: AMD's DRA driver and the demo pod were left installed."; fi
 [ "$FAIL" -eq 0 ]

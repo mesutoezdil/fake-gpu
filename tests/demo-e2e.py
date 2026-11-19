@@ -1,86 +1,99 @@
 #!/usr/bin/env python3
 """Published-cluster demo checks. Run MODE=dra or MODE=device-plugin separately."""
-import json
 import os
+import sys
 from pathlib import Path
-import subprocess
-import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'lib'))
+import e2e
 
 MODE = os.environ.get('MODE', 'dra')
-assert MODE in ('dra', 'device-plugin')
 ROOT = Path(__file__).resolve().parents[1]
+k = e2e.Kubectl()
+api = e2e.MockAPI(k)
 
-def k(*args):
-    return subprocess.check_output(['kubectl', *args], text=True).strip()
-
-def api(path, post=False):
-    args = ['wget', '-qO-'] + (['--post-data='] if post else [])
-    return json.loads(k('exec', '-n', 'amd-mock', 'ds/fake-gpu', '-c',
-                        'node-agent', '--', *args, 'http://localhost:8080' + path))
 
 def gone(label):
-    end = time.monotonic() + 120
-    while json.loads(k('get', 'pods', '-l', label, '-o', 'json'))['items']:
-        assert time.monotonic() < end, 'Demo pods did not clean up'
-        time.sleep(1)
+    e2e.wait_for(lambda: not k.items('pods', selector=label), 'demo pods with ' + label + ' deleted')
+
 
 def devices(pod, count):
-    k('exec', pod, '--', 'sh', '-c',
-      f'test -c /dev/kfd && set -- /dev/dri/renderD*; [ "$#" -eq {count} ] && '
-      'for d; do test -c "$d" || exit 1; done')
+    k.exec(pod, 'sh', '-c', e2e.device_probe(count))
 
-manifest = ROOT / ('deployments/dra/tiny-llm-demo.yaml' if MODE == 'dra'
-                   else 'deployments/tiny-llm-demo.yaml')
-label = 'tiny-llm-dra' if MODE == 'dra' else 'tiny-llm'
-deployment = 'tiny-llm-dra-demo' if MODE == 'dra' else 'tiny-llm-demo'
-try:
+
+def deployed(manifest, label, deployments):
+    """Apply a demo manifest, wait for its deployments, return its live pods."""
     k('apply', '-f', str(manifest))
-    k('rollout', 'status', 'deployment/' + deployment, '--timeout=180s')
-    pod = json.loads(k('get', 'pods', '-l', 'app=' + label, '-o', 'json'))['items'][0]['metadata']['name']
-    devices(pod, 1)
-    end = time.monotonic() + 30
-    while 'LLM service ready.' not in k('logs', pod):
-        assert time.monotonic() < end, 'Demo output did not finish'
-        time.sleep(1)
-    print(f'PASS: {MODE} Tiny LLM scheduled, exact GPU injected, scripted output finished', flush=True)
-finally:
-    k('delete', '-f', str(manifest), '--ignore-not-found', '--wait=true')
-    gone('app=' + label)
+    for deployment in deployments:
+        k('rollout', 'status', 'deployment/' + deployment, '--timeout=180s')
+    return [p for p in k.items('pods', selector=label) if not p['metadata'].get('deletionTimestamp')]
 
-# No GPU consumers remain. Partition API is a virtual model, not an allocator.
-try:
-    for mode, parts in [('DPX', 2), ('CPX', 8), ('QPX', 4), ('SPX', 1), ('CPX', 8), ('SPX', 1)]:
-        api('/api/partitions/set?mode=' + mode, True)
-        gpus = api('/api/gpus')['gpus']
-        assert len(gpus) == 8 * parts
-        assert len({g['uuid'] for g in gpus}) == len(gpus)
-        assert all(g['memory_total_mb'] == 192 * 1024 // parts for g in gpus)
-        assert len({g['pci_bdf'] for g in gpus}) == 8
-        if MODE == 'dra':
-            slices = json.loads(k('get', 'resourceslices', '-o', 'json'))['items']
-            assert sum(len(s['spec'].get('devices', [])) for s in slices) == 8
-        else:
-            nodes = json.loads(k('get', 'nodes', '-o', 'json'))['items']
-            assert int(nodes[0]['status']['allocatable']['amd.com/gpu']) == 8
-        print(f'PASS: {MODE} {mode}: {len(gpus)} virtual entries; physical capacity stays 8', flush=True)
-finally:
-    api('/api/partitions/set?mode=SPX', True)
 
-if MODE == 'device-plugin':
-    manifest = ROOT / 'deployments/partition-demo.yaml'
+def remove(manifest, label):
+    k('delete', '-f', str(manifest), '--ignore-not-found', '--wait=true', '--timeout=180s')
+    gone(label)
+
+
+def tiny_llm():
+    manifest = ROOT / ('deployments/dra/tiny-llm-demo.yaml' if MODE == 'dra' else 'deployments/tiny-llm-demo.yaml')
+    label = 'app=' + ('tiny-llm-dra' if MODE == 'dra' else 'tiny-llm')
+    deployment = 'tiny-llm-dra-demo' if MODE == 'dra' else 'tiny-llm-demo'
     try:
-        k('apply', '-f', str(manifest))
-        for deployment in ['llm-inference-a', 'llm-inference-b']:
-            k('rollout', 'status', 'deployment/' + deployment, '--timeout=180s')
-        pods = json.loads(k('get', 'pods', '-l', 'app=partition-demo', '-o', 'json'))['items']
-        assert len(pods) == 4
+        pods = deployed(manifest, label, [deployment])
+        assert len(pods) == 1, [p['metadata']['name'] for p in pods]
+        pod = pods[0]['metadata']['name']
+        devices(pod, 1)
+        e2e.wait_for(lambda: 'LLM service ready.' in k.out('logs', pod), 'demo output finished', timeout=30)
+        e2e.ok(f'{MODE} Tiny LLM scheduled, exact GPU injected, scripted output finished')
+    finally:
+        remove(manifest, label)
+
+
+def virtual_partitions():
+    # No GPU consumers remain. Partition API is a virtual model, not an allocator.
+    try:
+        for mode, parts in [('DPX', 2), ('CPX', 8), ('QPX', 4), ('SPX', 1), ('CPX', 8), ('SPX', 1)]:
+            api('/api/partitions/set?mode=' + mode, post=True)
+            gpus = api('/api/gpus')['gpus']
+            assert len(gpus) == 8 * parts, (mode, len(gpus))
+            assert len({g['uuid'] for g in gpus}) == len(gpus), mode + ': duplicate UUIDs'
+            assert all(g['memory_total_mb'] == 192 * 1024 // parts for g in gpus), mode + ': memory split'
+            assert len({g['pci_bdf'] for g in gpus}) == 8, mode + ': physical BDFs'
+            if MODE == 'dra':
+                slices = k.items('resourceslices')
+                assert sum(len(s['spec'].get('devices', [])) for s in slices) == 8, mode + ': ResourceSlice devices'
+            else:
+                nodes = k.items('nodes')
+                assert int(nodes[0]['status']['allocatable']['amd.com/gpu']) == 8, mode + ': allocatable'
+            e2e.ok(f'{MODE} {mode}: {len(gpus)} virtual entries; physical capacity stays 8')
+    finally:
+        api('/api/partitions/set?mode=SPX', post=True)
+
+
+def physical_replicas():
+    manifest = ROOT / 'deployments/partition-demo.yaml'
+    label = 'app=partition-demo'
+    try:
+        pods = deployed(manifest, label, ['llm-inference-a', 'llm-inference-b'])
+        assert len(pods) == 4, [p['metadata']['name'] for p in pods]
         allocated = []
         for pod in pods:
             name = pod['metadata']['name']
             devices(name, 1)
-            allocated.append(k('exec', name, '--', 'sh', '-c', 'ls /dev/dri/renderD*'))
-        assert len(set(allocated)) == 4
-        print('PASS: four simultaneous LLM replicas receive four distinct physical GPUs', flush=True)
+            allocated.append(k.exec(name, 'sh', '-c', 'ls /dev/dri/renderD*').stdout.strip())
+        assert len(set(allocated)) == 4, allocated
+        e2e.ok('four simultaneous LLM replicas receive four distinct physical GPUs')
     finally:
-        k('delete', '-f', str(manifest), '--ignore-not-found', '--wait=true')
-        gone('app=partition-demo')
+        remove(manifest, label)
+
+
+def main():
+    assert MODE in ('dra', 'device-plugin'), 'MODE must be dra or device-plugin'
+    tiny_llm()
+    virtual_partitions()
+    if MODE == 'device-plugin':
+        physical_replicas()
+
+
+if __name__ == '__main__':
+    main()
