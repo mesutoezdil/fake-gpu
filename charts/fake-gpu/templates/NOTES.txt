@@ -9,7 +9,7 @@ See https://github.com/mesutoezdil/fake-gpu/blob/main/docs/guides/dra.md
 Mock AMD GPU environment deployed on all nodes!
 
   Profile: {{ .Values.gpu.profile }}
-  Available profiles: mi210, mi250x, mi300a, mi300x, mi325x
+  Available profiles: mi210, mi250x, mi300a, mi300x, mi325x, mi350x, mi355x
   Mock driver root: {{ .Values.mockRootDir }}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

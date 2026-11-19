@@ -1,3 +1,4 @@
+{{- /* Agent API and dashboard; a NodePort when the kind quick start maps it to the host. */ -}}
 apiVersion: v1
 kind: Service
 metadata:

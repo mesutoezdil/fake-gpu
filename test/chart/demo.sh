@@ -65,10 +65,10 @@ for source, copy in [('deploy/workloads/tiny-llm-dra.yaml', 'demo/llm/dra.yaml')
 print('PASS: demo manifests and bundled dashboard match tested source assets')
 PY
 
-chart --show-only templates/metrics-exporter.yaml > "$WORK/probe-default"
+chart --show-only templates/metrics-exporter/daemonset.yaml > "$WORK/probe-default"
 has "$WORK/probe-default" 'timeoutSeconds: 5'
-chart --show-only templates/metrics-exporter.yaml --set metricsExporter.readinessTimeoutSeconds=10 > "$WORK/probe-custom"
+chart --show-only templates/metrics-exporter/daemonset.yaml --set metricsExporter.readinessTimeoutSeconds=10 > "$WORK/probe-custom"
 has "$WORK/probe-custom" 'timeoutSeconds: 10'
-chart --show-only templates/metrics-exporter.yaml --set metricsExporter.readinessTimeoutSeconds=null > "$WORK/probe-old-values"
+chart --show-only templates/metrics-exporter/daemonset.yaml --set metricsExporter.readinessTimeoutSeconds=null > "$WORK/probe-old-values"
 has "$WORK/probe-old-values" 'timeoutSeconds: 5'
 pass 'exporter readiness supports emulated workers, overrides, and older release values'

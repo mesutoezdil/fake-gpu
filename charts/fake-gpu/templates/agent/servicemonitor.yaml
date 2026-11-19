@@ -1,3 +1,4 @@
+{{- /* Agent metrics for an external Prometheus Operator. */ -}}
 {{- if .Values.prometheus.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

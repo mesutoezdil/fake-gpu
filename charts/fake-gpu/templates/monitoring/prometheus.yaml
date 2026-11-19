@@ -1,0 +1,126 @@
+{{- /* Bundled Prometheus scraping the AMD exporter and the agent's fault metrics. */ -}}
+{{- if .Values.monitoring.enabled }}
+{{- $name := include "fake-gpu.fullname" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-prometheus
+  namespace: {{ .Release.Namespace }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: {{ $name }}-metrics-exporter
+        honor_labels: true
+        dns_sd_configs:
+          - names: ['{{ $name }}-metrics-exporter-headless.{{ .Release.Namespace }}.svc.cluster.local']
+            type: A
+            port: 5000
+            refresh_interval: 15s
+        relabel_configs:
+          - target_label: service
+            replacement: {{ $name }}-metrics-exporter
+      # Fault state the AMD exporter has no metric for comes from the agent.
+      - job_name: {{ $name }}-agent
+        dns_sd_configs:
+          - names: ['{{ $name }}-agent-headless.{{ .Release.Namespace }}.svc.cluster.local']
+            type: A
+            port: {{ .Values.api.port }}
+            refresh_interval: 15s
+        metric_relabel_configs:
+          - source_labels: [__name__]
+            regex: gpu_(retired_pages|xgmi_link_up|throttled)
+            action: keep
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-agent-headless
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "fake-gpu.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: api
+      port: {{ .Values.api.port }}
+      targetPort: api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-metrics-exporter-headless
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "fake-gpu.exporterSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: 5000
+      targetPort: metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-prometheus
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-prometheus
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+        - name: prometheus
+          image: {{ .Values.monitoring.prometheus.image | quote }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=24h
+          ports:
+            - name: http
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+          resources:
+            {{- toYaml .Values.monitoring.prometheus.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+              readOnly: true
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $name }}-prometheus
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-prometheus
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+{{- end }}

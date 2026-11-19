@@ -1,0 +1,19 @@
+{{- /* Exporter metrics for an external Prometheus Operator. */ -}}
+{{- if and .Values.metricsExporter.enabled .Values.metricsExporter.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "fake-gpu.exporterName" . }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "fake-gpu.exporterSelectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: metrics
+      honorLabels: true
+      path: /metrics
+      interval: {{ .Values.metricsExporter.serviceMonitor.interval }}
+{{- end }}
