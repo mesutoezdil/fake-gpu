@@ -1,24 +1,43 @@
 {
+  "uid": "amd-real-exporter",
+  "title": "AMD GPU fleet",
+  "description": "AMD Device Metrics Exporter metrics of the mock GPUs.",
+  "tags": [
+    "amd",
+    "gpu",
+    "fake-gpu"
+  ],
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "id": null,
+  "links": [],
   "annotations": {
     "list": []
   },
-  "editable": true,
+  "templating": {
+    "list": []
+  },
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "id": null,
-  "links": [],
   "panels": [
     {
-      "title": "GPU Temperature",
       "type": "timeseries",
+      "title": "Temperature",
+      "description": "Edge temperature of each GPU.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 0,
-        "y": 0
+        "y": 0,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
+          "refId": "A",
           "expr": "amd_gpu_edge_temperature",
           "legendFormat": "GPU {{gpu_id}}"
         }
@@ -29,20 +48,34 @@
           "color": {
             "mode": "palette-classic"
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      }
+      },
+      "id": 1
     },
     {
-      "title": "GPU Power Draw",
       "type": "timeseries",
+      "title": "Power",
+      "description": "Package power each GPU draws.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 12,
-        "y": 0
+        "y": 0,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
+          "refId": "A",
           "expr": "amd_gpu_package_power",
           "legendFormat": "GPU {{gpu_id}}"
         }
@@ -53,20 +86,34 @@
           "color": {
             "mode": "palette-classic"
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      }
+      },
+      "id": 2
     },
     {
-      "title": "GPU Utilization",
       "type": "timeseries",
+      "title": "Utilization",
+      "description": "Share of time the graphics engine is busy.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 0,
-        "y": 8
+        "y": 8,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
+          "refId": "A",
           "expr": "amd_gpu_gfx_activity",
           "legendFormat": "GPU {{gpu_id}}"
         }
@@ -74,54 +121,85 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "max": 100,
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      }
+      },
+      "id": 3
     },
     {
-      "title": "VRAM Usage",
       "type": "timeseries",
+      "title": "VRAM",
+      "description": "Used and total video memory.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 12,
-        "y": 8
+        "y": 8,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
-          "expr": "amd_gpu_used_vram * 1048576 / 1073741824",
-          "legendFormat": "GPU {{gpu_id}} Used"
+          "refId": "A",
+          "expr": "amd_gpu_used_vram",
+          "legendFormat": "GPU {{gpu_id}} used"
         },
         {
-          "expr": "amd_gpu_total_vram * 1048576 / 1073741824",
-          "legendFormat": "GPU {{gpu_id}} Total"
+          "refId": "B",
+          "expr": "amd_gpu_total_vram",
+          "legendFormat": "GPU {{gpu_id}} total"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "decgbytes",
+          "unit": "mbytes",
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      }
+      },
+      "id": 4
     },
     {
-      "title": "GPU Clock Frequencies",
       "type": "timeseries",
+      "title": "GFX clock",
+      "description": "System clock, averaged over each GPU's clock domains.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 0,
-        "y": 16
+        "y": 16,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
+          "refId": "A",
           "expr": "avg by (gpu_id) (amd_gpu_clock{clock_type=\"system\"})",
-          "legendFormat": "GPU {{gpu_id}} GFX"
+          "legendFormat": "GPU {{gpu_id}}"
         }
       ],
       "fieldConfig": {
@@ -130,30 +208,86 @@
           "color": {
             "mode": "palette-classic"
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
-      }
+      },
+      "id": 5
     },
     {
-      "title": "ECC Errors",
-      "type": "stat",
+      "type": "timeseries",
+      "title": "Thermal throttling",
+      "description": "Share of time each GPU spent limited by processor-hot throttling.",
       "gridPos": {
-        "h": 8,
-        "w": 12,
         "x": 12,
-        "y": 16
+        "y": 16,
+        "w": 12,
+        "h": 8
       },
       "targets": [
         {
+          "refId": "A",
+          "expr": "amd_gpu_violation_processor_hot_residency_percentage",
+          "legendFormat": "GPU {{gpu_id}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 6
+    },
+    {
+      "type": "stat",
+      "title": "Uncorrectable ECC errors",
+      "description": "Uncorrectable ECC errors each GPU has counted.",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
           "expr": "amd_gpu_ecc_uncorrect_total",
           "legendFormat": "GPU {{gpu_id}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
+          "unit": "none",
           "color": {
             "mode": "thresholds"
           },
           "thresholds": {
+            "mode": "absolute",
             "steps": [
               {
                 "color": "green",
@@ -165,24 +299,21 @@
               }
             ]
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         }
-      }
+      },
+      "id": 7
     }
-  ],
-  "schemaVersion": 39,
-  "tags": [
-    "amd",
-    "gpu",
-    "mock"
-  ],
-  "templating": {
-    "list": []
-  },
-  "time": {
-    "from": "now-15m",
-    "to": "now"
-  },
-  "title": "AMD GPU Fleet: Device Metrics Exporter",
-  "uid": "amd-real-exporter",
-  "refresh": "5s"
+  ]
 }

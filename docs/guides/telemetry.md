@@ -83,7 +83,7 @@ These chart values remove parts of the stack:
 ### 2. Open the Grafana dashboard
 
 Open `http://localhost:3000`, sign in with `admin` / `amdmock` and open
-**AMD GPU Fleet: Device Metrics Exporter**. The dashboard refreshes every
+**AMD GPU fleet**. The dashboard refreshes every
 5 seconds. Exporter collection and Prometheus scraping add a short delay
 before dashboard actions appear in the graphs.
 
