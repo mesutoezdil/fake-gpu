@@ -1,7 +1,7 @@
 # Claim one mock GPU through DRA instead of the amd.com/gpu extended resource.
 # Requires AMD's DRA driver running against the mock; see docs/guides/dra.md.
 #
-#   kubectl apply -f deployments/dra/demo.yaml
+#   kubectl apply -f deploy/workloads/dra-claim.yaml
 #   kubectl logs dra-gpu-demo
 apiVersion: resource.k8s.io/v1
 kind: ResourceClaimTemplate

@@ -37,7 +37,7 @@ jobs:
           version: v0.33.0
           kubectl_version: v1.37.0
       - name: Port and dashboard chart contracts
-        run: tests/demo/chart-validation.sh
+        run: test/chart/demo.sh
       - name: Fresh published setup with both dashboards enabled
         run: |
           cp demo/config.yaml "$DEMO_CONFIG"
@@ -47,18 +47,18 @@ jobs:
           ./demo/setup.sh --config "$DEMO_CONFIG"
       - name: Grafana and all presenter commands
         run: |
-          python3 tests/demo/grafana-e2e.py
-          python3 tests/demo/presenter-e2e.py
+          python3 test/e2e/demo/grafana.py
+          python3 test/e2e/demo/presenter.py
       - name: Disable and restore both dashboards
         run: |
           source scripts/release.env
           helm upgrade fake-gpu oci://ghcr.io/mesutoezdil/fake-gpu --version "$CHART_VERSION" \
             -n amd-mock --reuse-values --set dashboard.enabled=false \
             --set monitoring.grafana.enabled=false --wait --timeout 3m
-          python3 tests/demo/dashboards-disabled.py
+          python3 test/e2e/demo/dashboards_disabled.py
           ./demo/setup.sh --skip-cluster --config "$DEMO_CONFIG"
-          python3 tests/dashboard-e2e.py
-          python3 tests/demo/grafana-e2e.py
+          python3 test/e2e/demo/dashboard.py
+          python3 test/e2e/demo/grafana.py
       - name: Diagnostics
         if: always()
         run: |

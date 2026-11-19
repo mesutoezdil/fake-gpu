@@ -48,7 +48,7 @@ func faultFixture(t *testing.T) (*APIServer, *FleetState, func(string) string) {
 	return NewAPIServer(state, r), state, read
 }
 
-// tests/dashboard-e2e.py looks for the same title on a live cluster; keeping
+// test/e2e/demo/dashboard.py looks for the same title on a live cluster; keeping
 // the check here catches a renamed page before it reaches CI.
 func TestConsolePageIsServed(t *testing.T) {
 	api := NewAPIServer(NewFleetState(profilesForTest(t)["mi300x"], "mi300x"), nil)
@@ -60,9 +60,9 @@ func TestConsolePageIsServed(t *testing.T) {
 			t.Fatalf("console page (HTTP %d) lacks %q", rec.Code, want)
 		}
 	}
-	data, err := os.ReadFile("../../../tests/dashboard-e2e.py")
+	data, err := os.ReadFile("../../../test/e2e/demo/dashboard.py")
 	if err != nil || !strings.Contains(string(data), "<title>fake-gpu console</title>") {
-		t.Fatalf("tests/dashboard-e2e.py no longer checks the served title: %v", err)
+		t.Fatalf("test/e2e/demo/dashboard.py no longer checks the served title: %v", err)
 	}
 }
 

@@ -30,7 +30,7 @@ for arch in amd64 arm64; do
  podman run --rm -v "$ROOT/pkg/mocksmi:/src:ro" -v "$context/pkg/mocksmi:/out" localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 -Wl,-soname,libamd_smi.so.27 -Wl,--version-script=/src/version.map -o /out/libamd_smi.so /src/mock.c /src/unsupported.c
  podman run --rm -v "$ROOT/pkg/hipshim:/src:ro" -v "$context/pkg/hipshim:/out" localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 -Wl,-soname,libfakehip.so -o /out/libfakehip.so /src/fakehip.c -lpthread
  podman build --platform "linux/$arch" -f Dockerfile.prebuilt -t "$IMAGE_REGISTRY/fake-gpu:v$MOCK_IMAGE_VERSION-$arch" "$context"
- podman build --platform "linux/$arch" -f deployments/metrics-exporter/Dockerfile -t "$IMAGE_REGISTRY/amd-device-metrics-exporter:$METRICS_EXPORTER_TAG-$arch" .
+ podman build --platform "linux/$arch" -f deploy/metrics-exporter/Dockerfile -t "$IMAGE_REGISTRY/amd-device-metrics-exporter:$METRICS_EXPORTER_TAG-$arch" .
 done
 for image in "fake-gpu:v$MOCK_IMAGE_VERSION" "amd-device-metrics-exporter:$METRICS_EXPORTER_TAG"; do
  manifest="$IMAGE_REGISTRY/$image"
@@ -39,6 +39,6 @@ for image in "fake-gpu:v$MOCK_IMAGE_VERSION" "amd-device-metrics-exporter:$METRI
  for arch in amd64 arm64; do podman manifest add "$manifest" "containers-storage:$manifest-$arch"; done
  if $PUSH; then podman manifest push --all "$manifest" "docker://$manifest"; fi
 done
-helm lint deployments/helm/fake-gpu
-helm package deployments/helm/fake-gpu -d "$BUILD"
+helm lint charts/fake-gpu
+helm package charts/fake-gpu -d "$BUILD"
 if $PUSH; then helm push "$BUILD/fake-gpu-$CHART_VERSION.tgz" "oci://$IMAGE_REGISTRY"; fi

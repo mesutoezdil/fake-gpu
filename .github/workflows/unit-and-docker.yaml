@@ -28,7 +28,7 @@ jobs:
           go test -c -o /tmp/mockdriver.test ./pkg/mockdriver
           sudo /tmp/node-agent.test -test.v -test.run 'TestCreateDeviceNodes|TestMakedev'
           sudo /tmp/mockdriver.test -test.v
-      - run: tests/docker/run.sh
-      - run: tests/hipshim/run.sh
-      - run: tests/hipshim/live.sh
-      - run: tests/hipcpu/run.sh
+      - run: test/container/docker/run.sh
+      - run: test/container/hipshim/run.sh
+      - run: test/container/hipshim/live.sh
+      - run: test/container/hipcpu/run.sh

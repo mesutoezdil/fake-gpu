@@ -33,7 +33,7 @@ jobs:
           kubectl_version: v1.37.0
           cluster_name: amd-partitions
           node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
-          config: deployments/kind-node/kind-config.yaml
+          config: deploy/kind-node/kind-config.yaml
           wait: 120s
       - name: Registry credentials for the node
         run: scripts/ci/node-registry-auth.sh amd-partitions
@@ -48,7 +48,7 @@ jobs:
           make -C pkg/hipshim
           docker build -f Dockerfile.prebuilt -t fake-gpu:partition-test .
           kind load docker-image fake-gpu:partition-test --name amd-partitions
-          helm install fake-gpu deployments/helm/fake-gpu \
+          helm install fake-gpu charts/fake-gpu \
             -n amd-mock --create-namespace --set gpu.partition=DPX \
             --set image.repository=fake-gpu --set image.tag=partition-test \
             --set image.pullPolicy=Never --wait --timeout 5m
@@ -59,7 +59,7 @@ jobs:
             --version 0.1.0 -n amd-mock --create-namespace \
             --set gpu.partition=DPX --wait --timeout 5m
       - name: Same-parent allocation, exhaustion, release, reuse and restart
-        run: python3 -u tests/dra/partition-allocation.py | tee partition-allocation.log
+        run: python3 -u test/e2e/dra/partitions.py | tee partition-allocation.log
       - name: Diagnostics
         if: always()
         run: |

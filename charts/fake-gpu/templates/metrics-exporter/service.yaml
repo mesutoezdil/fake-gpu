@@ -1,0 +1,16 @@
+{{- /* Exporter metrics endpoint. */ -}}
+{{- if .Values.metricsExporter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fake-gpu.exporterName" . }}
+  labels:
+    {{- include "fake-gpu.exporterSelectorLabels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "fake-gpu.exporterSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: 5000
+      targetPort: metrics
+{{- end }}

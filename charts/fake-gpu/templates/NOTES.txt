@@ -1,0 +1,49 @@
+{{- if .Values.dra.enabled }}
+AMD DRA driver installed with the mock. Inspect published devices:
+  kubectl get resourceslices
+
+Use ResourceClaim / ResourceClaimTemplate requests for deviceClassName gpu.amd.com.
+The device plugin is disabled, so amd.com/gpu capacity is not advertised.
+See https://github.com/mesutoezdil/fake-gpu/blob/main/docs/guides/dra.md
+{{- else }}
+Mock AMD GPU environment deployed on all nodes!
+
+  Profile: {{ .Values.gpu.profile }}
+  Available profiles: mi210, mi250x, mi300a, mi300x, mi325x, mi350x, mi355x
+  Mock driver root: {{ .Values.mockRootDir }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VERIFY MOCK GPUS:
+
+  kubectl -n {{ .Release.Namespace }} exec ds/{{ include "fake-gpu.fullname" . }} -- \
+    cat {{ .Values.mockRootDir }}/sys/class/kfd/kfd/topology/nodes/1/name
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- if .Values.devicePlugin.enabled }}
+DEVICE PLUGIN INSTALLED:
+  kubectl get node -o jsonpath='{.items[0].status.allocatable.amd\.com/gpu}'
+{{- end }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHANGE GPU PROFILE:
+
+  helm upgrade {{ .Release.Name }} ./charts/fake-gpu \
+    --namespace {{ .Release.Namespace }} \
+    --set gpu.profile=mi250x
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{- end }}
+
+{{- if .Values.dashboard.enabled }}
+Dashboard: http://localhost:8080 (when using the quick-start kind configuration).
+To change the host port, see the README Dashboard section.
+{{- end }}
+
+{{- if and .Values.monitoring.enabled .Values.monitoring.grafana.enabled }}
+Grafana: http://localhost:3000 (quick-start kind mapping; admin / configured password).
+Dashboard and Grafana ports/toggles: demo/config.yaml with demo/setup.sh.
+{{- end }}

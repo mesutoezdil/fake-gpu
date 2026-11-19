@@ -1,0 +1,112 @@
+{{- /* The node agent renders the mock driver surfaces on every selected node. */ -}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "fake-gpu.fullname" . }}
+  labels:
+    {{- include "fake-gpu.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "fake-gpu.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "fake-gpu.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/agent/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "fake-gpu.nodeSelector" . | nindent 6 }}
+      containers:
+        - name: node-agent
+          image: {{ include "fake-gpu.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - node-agent
+            - --config=/etc/fake-gpu/config.yaml
+            - --partition={{ include "fake-gpu.partition" . }}
+            - --root={{ .Values.mockRootDir }}
+            - --api=:{{ .Values.api.port }}
+            {{- if .Values.driverMock.enabled }}
+            - --device-backend=cuse
+            {{- end }}
+            {{- if .Values.kernelLog.enabled }}
+            - --kernel-log=/dev/kmsg
+            {{- end }}
+          ports:
+            - name: api
+              containerPort: {{ .Values.api.port }}
+              protocol: TCP
+          {{- if .Values.driverMock.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /api/gpus
+              port: api
+            periodSeconds: 2
+          {{- end }}
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/fake-gpu/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            - name: mock-root
+              mountPath: {{ .Values.mockRootDir }}
+              mountPropagation: Bidirectional
+            - name: host-dev
+              mountPath: /dev
+              {{- if .Values.driverMock.enabled }}
+              mountPropagation: Bidirectional
+              {{- end }}
+            - name: host-cdi
+              mountPath: /etc/cdi
+            - name: host-cdi-run
+              mountPath: /var/run/cdi
+        {{- if .Values.nri.enabled }}
+        - name: nri-plugin
+          image: {{ include "fake-gpu.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - nri-plugin
+            - --overlay-host={{ .Values.mockRootDir }}
+            - --overlay-mount=/opt/fake-gpu
+            - --release-namespace={{ .Release.Namespace }}
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: nri-socket
+              mountPath: /var/run/nri
+            - name: mock-root
+              mountPath: {{ .Values.mockRootDir }}
+              readOnly: true
+        {{- end }}
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "fake-gpu.fullname" . }}
+        - name: mock-root
+          hostPath:
+            path: {{ .Values.mockRootDir }}
+            type: DirectoryOrCreate
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-cdi
+          hostPath:
+            path: /etc/cdi
+            type: DirectoryOrCreate
+        - name: host-cdi-run
+          hostPath:
+            path: /var/run/cdi
+            type: DirectoryOrCreate
+        {{- if .Values.nri.enabled }}
+        - name: nri-socket
+          hostPath:
+            path: /var/run/nri
+        {{- end }}

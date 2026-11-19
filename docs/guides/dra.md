@@ -1,7 +1,10 @@
 # Dynamic Resource Allocation (DRA)
 
-The default README quick start installs DRA using the shared kind node image.
-No separate cluster or driver installation is required.
+This guide runs AMD's DRA driver against the mock GPUs and claims a device
+through a ResourceClaim. It proves that ResourceSlices are published, claims
+are allocated, and only the allocated device nodes are injected into the pod.
+
+## Overview
 
 DRA lets Kubernetes allocate devices through ResourceClaims instead of
 extended resources such as `amd.com/gpu`. The mock supplies the sysfs and
@@ -9,48 +12,64 @@ device nodes that AMD's driver discovers. AMD's driver publishes devices,
 Kubernetes allocates them, and kubelet asks the driver to prepare CDI specs
 that containerd uses to inject the allocated devices.
 
-## Use the default quick start: published images only
+- **Real, unmodified:** AMD's DRA driver (v1.0.0 source), the Kubernetes API
+  server, scheduler and kubelet, and the container runtime with CDI.
+- **Mocked:** the sysfs tree and character device nodes the driver reads.
 
-Install kind v0.33.0 or newer, kubectl v1.37, Helm, and a running Docker or
-Podman runtime. Chart 0.1.0 / mock release 0.1.0 uses the 0.1.0 node image and supports Kubernetes 1.37 only. Linux
-AMD64 and Linux ARM64 nodes are supported; Apple-silicon Macs run ARM64
-nodes inside the container runtime's Linux VM. Internet access is needed
-to pull images and the chart. No Go compiler or local image build is required.
+The README quick start installs DRA by default. No separate cluster or driver
+installation is required. DRA and the device plugin are mutually exclusive
+allocators; choose the [device-plugin guide](device-plugin.md) to schedule
+with `amd.com/gpu` instead. For partitioned MI300X devices, see
+[same-GPU partition allocation](partition-allocation.md).
 
-Install using the [README quick start](../../README.md#on-kubernetes), then verify
-on that same cluster:
+## Requirements
 
-```bash
-kubectl -n amd-mock rollout status ds/fake-gpu --timeout=120s
-kubectl -n amd-mock rollout status ds/fake-gpu-dra-kubeletplugin --timeout=180s
-kubectl get resourceslices
-```
+- kind v0.33.0 or newer, kubectl v1.37, Helm, and a running Docker or Podman
+  runtime.
+- Kubernetes 1.37 only. Chart 0.1.0 / mock release 0.1.0 uses the 0.1.0 node
+  image, which runs v1.37.0. Older Kubernetes versions are not supported by
+  this release, even if they expose the v1 DRA API.
+- Linux AMD64 or Linux ARM64 nodes. Apple-silicon Macs run ARM64 nodes inside
+  the container runtime's Linux VM.
+- Internet access to pull images and the chart. The published-image install
+  needs no Go compiler or local image build.
+- For an existing cluster instead of kind: it must serve `resource.k8s.io/v1`,
+  allow the privileged mock/driver DaemonSets and hostPath mounts, and have
+  CDI enabled in its container runtime.
 
-The chart includes the pinned AMD driver chart and uses a published multiarch
-image built from AMD's unchanged v1.0.0 source. It mounts the mock sysfs tree
-at the driver's `/sys`; no post-renderer or upstream source checkout is needed
-for this install. DeviceClass `gpu.amd.com` is installed automatically.
-DRA and the device plugin are mutually exclusive allocators. In DRA mode,
-`amd.com/gpu` node capacity is not the check for success; ResourceSlices are.
+## Steps
 
-From this project's checkout, the equivalent one-command demo is:
+### 1. Install the mock and AMD's DRA driver
+
+Install using the [README quick start](../../README.md#on-kubernetes). From
+this project's checkout, the equivalent one-command demo with published
+images is:
 
 ```bash
 scripts/dra-setup.sh
 # Uses a separate kubeconfig under tmp/; leaves other cluster contexts intact.
 ```
 
-For an existing Kubernetes cluster, skip `kind create`. It must serve
-`resource.k8s.io/v1`, allow the privileged mock/driver DaemonSets and hostPath
-mounts, and have CDI enabled in its container runtime. Use Kubernetes 1.37;
-the published node image runs v1.37.0. Older Kubernetes versions are not
-supported by this release, even if they expose the v1 DRA API.
-If limiting the mock to particular nodes, give both `nodeSelector` and
-`dra.kubeletPlugin.nodeSelector` identical values. With a nondefault mock root,
-also set `dra.mockSysPath` to `<mockRootDir>/sys`. The chart checks both rules.
+The chart includes the pinned AMD driver chart and uses a published multiarch
+image built from AMD's unchanged v1.0.0 source. It mounts the mock sysfs tree
+at the driver's `/sys`; no post-renderer or upstream source checkout is needed
+for this install. DeviceClass `gpu.amd.com` is installed automatically.
+
+### 2. (Existing cluster) Adjust node selection and sysfs root
+
+For an existing Kubernetes cluster, skip `kind create` and install the chart
+directly. Observe these rules (the chart checks both):
+
+- If limiting the mock to particular nodes, give both `nodeSelector` and
+  `dra.kubeletPlugin.nodeSelector` identical values.
+- With a nondefault mock root, also set `dra.mockSysPath` to
+  `<mockRootDir>/sys`.
+
 NRI is disabled by default and is not part of the tested DRA allocation path.
 
-## Claim a GPU
+### 3. Claim a GPU
+
+Save this as `dra-demo.yaml`:
 
 ```yaml
 apiVersion: resource.k8s.io/v1
@@ -84,18 +103,16 @@ spec:
       resourceClaimTemplateName: amd-gpu
 ```
 
-Save this as `dra-demo.yaml`, then:
+Apply it and wait for the pod:
 
 ```bash
 kubectl apply -f dra-demo.yaml
 kubectl wait pod/dra-gpu-demo --for=condition=Ready --timeout=180s
-kubectl logs dra-gpu-demo
-kubectl get resourceclaims
 ```
 
-A one-GPU allocation gives the pod `/dev/kfd`, one `/dev/dri/cardN`, and
-one `/dev/dri/renderDN`. Set `exactly.count: 2` to request two devices.
-`deployments/dra/demo.yaml` in the source tree also includes a product selector:
+Set `exactly.count: 2` to request two devices.
+`deploy/workloads/dra-claim.yaml` in the source tree also includes a product
+selector:
 
 ```yaml
 selectors:
@@ -106,7 +123,89 @@ selectors:
 The default MI300X profile matches it. A nonmatching selector leaves the
 claim unallocated and its consumer pod Pending.
 
-## Discovery and allocation
+## Verify
+
+Check that the mock and the driver are running and that devices are published:
+
+```bash
+kubectl -n amd-mock rollout status ds/fake-gpu --timeout=120s
+kubectl -n amd-mock rollout status ds/fake-gpu-dra-kubeletplugin --timeout=180s
+kubectl get resourceslices
+```
+
+In DRA mode, `amd.com/gpu` node capacity is not the check for success;
+ResourceSlices are. Then inspect the consumer:
+
+```bash
+kubectl logs dra-gpu-demo
+kubectl get resourceclaims
+```
+
+A one-GPU allocation gives the pod `/dev/kfd`, one `/dev/dri/cardN`, and
+one `/dev/dri/renderDN`, and the generated claim shows an allocation.
+
+### Tests
+
+The source tree includes:
+
+```bash
+# AMD's unmodified discovery package against every rendered profile.
+# Linux: git, Go 1.24+, and mount namespaces or sudo.
+# macOS: runs the same test in Docker/Podman's Linux VM.
+test/container/dra_discovery/run.sh
+
+# Chart safety checks: allocator conflicts, sysfs roots, and node selectors.
+test/chart/dra.sh
+
+# Validate the driver installed by the published chart.
+INSTALL_DRIVER=0 DRA_NS=amd-mock test/e2e/dra/run.sh
+
+# Focused blog scenarios: capacity, init/main sharing, PCIe-root constraints.
+# Requires two free devices sharing a PCIe root on one healthy mock node.
+python3 test/e2e/dra/constraints.py
+
+# Run after other GPU-consuming test pods have been deleted.
+# Requires a dedicated single-node cluster with at least two mock GPUs.
+DRA_NS=amd-mock python3 test/e2e/dra/lifecycle.py
+```
+
+Each script creates a separate unused test namespace. It cleans up its own
+workloads unless `KEEP=1` is set. The lifecycle suite requires the whole pool
+free at the start; delete the demo pod and earlier test namespaces first.
+Set `KUBECONFIG` to the intended cluster before running any test.
+
+| Case | Assertion |
+|---|---|
+| Chart configuration | Reject simultaneous allocators, mismatched sysfs roots, and mismatched node selectors |
+| All-profile discovery | All 7 profiles / 60 GPUs match profile attributes |
+| ResourceSlice publication | Every device on mock nodes has required attributes and capacities |
+| One-GPU claim | Pod gets `/dev/kfd` and exactly one card/render character-device pair |
+| Matching / nonmatching selectors | Match allocates; nonmatch remains unallocated |
+| Generated claim deletion | Claim disappears after its pod is deleted |
+| Memory capacity request | Exact advertised memory allocates; a 1-EiB request remains Pending and unallocated |
+| Init/main sharing | One allocation; identical KFD/card/render paths and major/minor identities in both containers |
+| PCIe-root constraints | Two distinct devices share the advertised root; contradictory distinct-root constraint stays unallocated |
+| Same-GPU reallocation | A PCI bus ID selector reallocates the released GPU |
+| Multi-GPU request | Two distinct GPUs and exactly two card/render pairs |
+| Full-pool exhaustion | All GPUs allocate once; an additional claim cannot allocate |
+| Pending claim after release | The waiting consumer starts when capacity is released |
+| Explicit claim lifetime | Object remains; last-consumer deletion releases allocation; a new consumer reallocates |
+| Shared explicit claim | Two consumers share the same allocation without taking another GPU |
+| CDI cleanup | Per-claim spec disappears after unprepare |
+| Driver restart | Existing allocation and CDI state survive restart |
+
+The installed-driver basic suite has 12 checks and the lifecycle suite 9; the
+standalone install mode adds a chart-remapping check. The GitHub Actions
+matrix tests both the source mock with AMD's official driver image and the
+published quickstart artifacts. It pins kind v0.33.0 and kubectl v1.37.0 for
+Kubernetes v1.37.0; older kind versions can generate kubeadm configuration
+APIs that this Kubernetes version rejects. This is a tested support matrix,
+not a claim that every DRA feature works. See also
+[automated validation](../contributing/testing.md#dra).
+
+## How it works
+
+### Discovery and allocation
 
 ```mermaid
 sequenceDiagram
@@ -140,13 +239,15 @@ driver version, NUMA node, and capacities. Publication alone does not prove
 allocation works: the claim, kubelet preparation, CDI file, and device nodes
 inside the consumer container must all succeed.
 
+### Driver image and chart provenance
+
 The project republishes upstream AMD source for both CPU architectures.
 Its image adds no driver behavior changes. The vendored chart changes the
 hardcoded `/sys` hostPath into a configurable value, normalizes chart metadata,
 and selects the published image. Provenance and upstream license are included
 in the chart and images.
 
-## Release, explicit claims, and driver restarts
+### Release, explicit claims, and driver restarts
 
 A pod using a ResourceClaimTemplate gets a generated claim owned by that pod.
 Deleting the pod releases its reservation; kubelet asks AMD's driver to
@@ -167,125 +268,9 @@ consumer and a subsequent consumer after restart. A new pod can briefly
 report `DRA driver gpu.amd.com is not registered` while kubelet reconnects;
 the lifecycle test waits for recovery.
 
-## Tests
+### Focused DRA blog scenarios
 
-The source tree includes:
-
-```bash
-# AMD's unmodified discovery package against every rendered profile.
-# Linux: git, Go 1.24+, and mount namespaces or sudo.
-# macOS: runs the same test in Docker/Podman's Linux VM.
-tests/dra/discovery-check.sh
-
-# Chart safety checks: allocator conflicts, sysfs roots, and node selectors.
-tests/dra/chart-validation.sh
-
-# Validate the driver installed by the published chart.
-INSTALL_DRIVER=0 DRA_NS=amd-mock tests/dra/validate_dra.sh
-
-# Focused blog scenarios: capacity, init/main sharing, PCIe-root constraints.
-# Requires two free devices sharing a PCIe root on one healthy mock node.
-python3 tests/dra/focused.py
-
-# Run after other GPU-consuming test pods have been deleted.
-# Requires a dedicated single-node cluster with at least two mock GPUs.
-DRA_NS=amd-mock python3 tests/dra/lifecycle.py
-```
-
-Each script creates a separate unused test namespace. It cleans up its own
-workloads unless `KEEP=1` is set. The lifecycle suite requires the whole pool
-free at the start; delete the demo pod and earlier test namespaces first.
-Set `KUBECONFIG` to the intended cluster before running any test.
-
-| Case | Assertion |
-|---|---|
-| Chart configuration | Reject simultaneous allocators, mismatched sysfs roots, and mismatched node selectors |
-| All-profile discovery | All 7 profiles / 60 GPUs match profile attributes |
-| ResourceSlice publication | Every device on mock nodes has required attributes and capacities |
-| One-GPU claim | Pod gets `/dev/kfd` and exactly one card/render character-device pair |
-| Matching / nonmatching selectors | Match allocates; nonmatch remains unallocated |
-| Generated claim deletion | Claim disappears after its pod is deleted |
-| Memory capacity request | Exact advertised memory allocates; a 1-EiB request remains Pending and unallocated |
-| Init/main sharing | One allocation; identical KFD/card/render paths and major/minor identities in both containers |
-| PCIe-root constraints | Two distinct devices share the advertised root; contradictory distinct-root constraint stays unallocated |
-| Same-GPU reallocation | A PCI bus ID selector reallocates the released GPU |
-| Multi-GPU request | Two distinct GPUs and exactly two card/render pairs |
-| Full-pool exhaustion | All GPUs allocate once; an additional claim cannot allocate |
-| Pending claim after release | The waiting consumer starts when capacity is released |
-| Explicit claim lifetime | Object remains; last-consumer deletion releases allocation; a new consumer reallocates |
-| Shared explicit claim | Two consumers share the same allocation without taking another GPU |
-| CDI cleanup | Per-claim spec disappears after unprepare |
-| Driver restart | Existing allocation and CDI state survive restart |
-
-The installed-driver basic suite has 12 checks and the lifecycle suite 9; the
-standalone install mode adds a chart-remapping check. The GitHub Actions
-matrix tests both the source mock with AMD’s official driver image and the
-published quickstart artifacts. It pins kind v0.33.0
-and kubectl v1.37.0 for Kubernetes v1.37.0; older kind versions can generate
-kubeadm configuration APIs that this Kubernetes version rejects.
-This is a tested support matrix, not a claim that every DRA feature works.
-
-## Limits and troubleshooting
-
-- **Fixed DPX/NPS2 partitions are supported for MI300X.** See
-  [same-GPU partition allocation](partition-allocation.md). CPX/QPX startup
-  topology and AutoPartition management calls are not implemented.
-- **No live device-health or hot-plug guarantee.** Discovery occurs at driver
-  startup. Profile switches require driver restart and matching host device
-  nodes; switching profiles while claims are active is not a supported workflow.
-- **Not yet validated:** multi-node claim placement, node reboot/failure,
-  topology-aware scheduling across nodes, optional DRA feature gates, and
-  Kubernetes releases other than the tested version.
-- **No GPU execution.** Device nodes prove scheduling/injection, not HIP,
-  KFD ioctls, DMA, or real memory isolation.
-- **Product names:** MI300X has the confirmed raw sysfs value; other profiles
-  fall back to their display name.
-
-If no ResourceSlice appears, inspect the driver logs:
-
-```bash
-kubectl -n amd-mock logs ds/fake-gpu-dra-kubeletplugin -c plugin
-kubectl -n amd-mock logs ds/fake-gpu-dra-kubeletplugin -c driver-init
-```
-
-An empty driver version indicates an older mock image or missing driver links.
-For a Pending consumer, inspect its ResourceClaim and pod events. A claim with
-no allocation may have a nonmatching selector or an exhausted pool; a claim
-with an allocation but a container creation error points to preparation/CDI.
-
-## Cleanup and release builds
-
-```bash
-kubectl delete -f dra-demo.yaml
-helm uninstall fake-gpu --namespace amd-mock
-kind delete cluster --name amd-dra
-```
-
-For the scripted setup, use `scripts/dra-setup.sh --teardown`.
-
-Maintainers build and publish all required images and the OCI chart with:
-
-```bash
-scripts/build-images.sh          # local AMD64/ARM64 build
-scripts/build-images.sh --push   # publish versioned manifests and chart
-```
-
-This requires Go, Git, Helm, Podman, registry authentication, and internet
-access. The script pins upstream commits, builds both architectures, includes
-licenses, and packages the chart. Users following the quick start do not run it.
-Release pins are recorded in `scripts/release.env`. Do not overwrite an existing
-release tag with different source; update the version and chart defaults together.
-
-## Telemetry for DRA consumers
-
-Chart 0.1.0 starts the [AMD telemetry pipeline](telemetry.md) by default.
-The real exporter reads kubelet pod-resources to attach consumer pod, namespace
-and container labels to allocated GPUs. Dashboard fault controls update the
-same state read by AMD SMI; they do not promise DRA deallocation or remediation.
-
-## Focused DRA blog scenarios
-
-`tests/dra/focused.py` creates an unused `amd-dra-focused` namespace and
+`test/e2e/dra/constraints.py` creates an unused `amd-dra-focused` namespace and
 selects two available devices sharing a PCIe root on a healthy mock node.
 It reads existing allocations across all namespaces and leaves other workloads
 untouched. Set `FOCUSED_NS` to override the namespace or `KEEP=1` to retain
@@ -331,6 +316,81 @@ Source references:
 On Kubernetes v1.37.0, `memory: 192Gi` allocates a GPU while
 `gpu.amd.com/memory: 192Gi` stays unallocated with `FailedScheduling`. The
 focused suite additionally requires CDI device visibility for its positive
-capacity case. Future Kubernetes
-versions may normalize both spellings; recheck their allocator before changing
-this example.
+capacity case. Future Kubernetes versions may normalize both spellings;
+recheck their allocator before changing this example.
+
+### Telemetry for DRA consumers
+
+Chart 0.1.0 starts the [AMD telemetry pipeline](telemetry.md) by default.
+The real exporter reads kubelet pod-resources to attach consumer pod, namespace
+and container labels to allocated GPUs. Dashboard fault controls update the
+same state read by AMD SMI; they do not promise DRA deallocation or remediation.
+
+### Release builds
+
+Maintainers build and publish all required images and the OCI chart with:
+
+```bash
+scripts/build-images.sh          # local AMD64/ARM64 build
+scripts/build-images.sh --push   # publish versioned manifests and chart
+```
+
+This requires Go, Git, Helm, Podman, registry authentication, and internet
+access. The script pins upstream commits, builds both architectures, includes
+licenses, and packages the chart. Users following the quick start do not run it.
+Release pins are recorded in `scripts/release.env`. Do not overwrite an existing
+release tag with different source; update the version and chart defaults together.
+
+## Limits and troubleshooting
+
+Limits of the simulation:
+
+- **Fixed DPX/NPS2 partitions are supported for MI300X.** See
+  [same-GPU partition allocation](partition-allocation.md). CPX/QPX startup
+  topology and AutoPartition management calls are not implemented.
+- **No live device-health or hot-plug guarantee.** Discovery occurs at driver
+  startup. Profile switches require driver restart and matching host device
+  nodes; switching profiles while claims are active is not a supported workflow.
+- **Not yet validated:** multi-node claim placement, node reboot/failure,
+  topology-aware scheduling across nodes, optional DRA feature gates, and
+  Kubernetes releases other than the tested version.
+- **No GPU execution.** Device nodes prove scheduling/injection, not HIP,
+  KFD ioctls, DMA, or real memory isolation.
+- **Product names:** MI300X has the confirmed raw sysfs value; other profiles
+  fall back to their display name.
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| No ResourceSlice appears | See the driver logs | Inspect the `plugin` and `driver-init` logs (commands below) |
+| Empty driver version | Older mock image or missing driver links | Use the current mock image; `cardN/device/driver/module/version` must resolve |
+| Consumer Pending, claim has no allocation | Nonmatching selector or exhausted pool | Inspect the ResourceClaim and pod events; fix the selector or free devices |
+| Claim allocated, container creation error | Preparation/CDI failure | Inspect pod events and the driver `plugin` logs |
+| New pod reports `DRA driver gpu.amd.com is not registered` | Kubelet reconnecting after a driver restart | Wait for recovery |
+
+Driver logs:
+
+```bash
+kubectl -n amd-mock logs ds/fake-gpu-dra-kubeletplugin -c plugin
+kubectl -n amd-mock logs ds/fake-gpu-dra-kubeletplugin -c driver-init
+```
+
+## Clean up
+
+```bash
+kubectl delete -f dra-demo.yaml
+helm uninstall fake-gpu --namespace amd-mock
+kind delete cluster --name amd-dra
+```
+
+For the scripted setup, use `scripts/dra-setup.sh --teardown`. A cluster
+created with the README quick start is named `fake-gpu`; remove it with
+`kind delete cluster --name fake-gpu`.
+
+## Related
+
+- [README quick start](../../README.md#on-kubernetes)
+- [Same-GPU partition allocation](partition-allocation.md)
+- [Device-plugin guide](device-plugin.md)
+- [Telemetry guide](telemetry.md)
+- [Automated validation](../contributing/testing.md)
+- [Architecture](../reference/architecture.md)

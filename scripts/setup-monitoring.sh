@@ -9,7 +9,7 @@ CHART="${MOCK_CHART:-oci://$IMAGE_REGISTRY/fake-gpu}"
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update prometheus-community
 helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
- --version 92.0.0 -f "$ROOT/deployments/metrics-exporter/monitoring-values.yaml" --namespace "$MONITORING_NAMESPACE" --create-namespace \
+ --version 92.0.0 -f "$ROOT/deploy/metrics-exporter/monitoring-values.yaml" --namespace "$MONITORING_NAMESPACE" --create-namespace \
  --set grafana.adminPassword="${GRAFANA_ADMIN_PASSWORD:-amdmock}" \
  --set grafana.sidecar.dashboards.searchNamespace=ALL \
  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
@@ -28,6 +28,6 @@ helm upgrade "$MOCK_RELEASE" "$CHART" "${args[@]}" --namespace "$MOCK_NAMESPACE"
  --set prometheus.serviceMonitor.enabled=false \
  --wait --timeout 5m
 # Rewrite the ConfigMap namespace when users choose a custom monitoring namespace.
-sed "s/namespace: monitoring/namespace: $MONITORING_NAMESPACE/" "$ROOT/deployments/metrics-exporter/grafana-dashboard.yaml" | kubectl apply -f -
+sed "s/namespace: monitoring/namespace: $MONITORING_NAMESPACE/" "$ROOT/deploy/metrics-exporter/grafana-dashboard.yaml" | kubectl apply -f -
 printf '\nMonitoring installed. Grafana dashboard: AMD GPU Fleet: Device Metrics Exporter\n'
 printf 'Access: kubectl -n %s port-forward svc/monitoring-grafana 3000:80\n' "$MONITORING_NAMESPACE"

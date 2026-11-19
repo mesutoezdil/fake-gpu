@@ -1,0 +1,124 @@
+{{- /* Bundled Grafana with the AMD exporter dashboard, provisioned on start. */ -}}
+{{- if and .Values.monitoring.enabled .Values.monitoring.grafana.enabled }}
+{{- $name := include "fake-gpu.fullname" . }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}-grafana
+  namespace: {{ .Release.Namespace }}
+type: Opaque
+stringData:
+  admin-password: {{ .Values.monitoring.grafana.adminPassword | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-grafana-provisioning
+  namespace: {{ .Release.Namespace }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        access: proxy
+        url: http://{{ $name }}-prometheus:9090
+        isDefault: true
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: Fake GPU
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-grafana-dashboard
+  namespace: {{ .Release.Namespace }}
+data:
+  amd-real-exporter.json: |
+{{ .Files.Get "files/amd-real-exporter.json" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-grafana
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}-grafana
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: {{ .Values.monitoring.grafana.image | quote }}
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}-grafana
+                  key: admin-password
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          resources:
+            {{- toYaml .Values.monitoring.grafana.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+              subPath: datasources.yaml
+              readOnly: true
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
+              subPath: dashboards.yaml
+              readOnly: true
+            - name: dashboard
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: provisioning
+          configMap:
+            name: {{ $name }}-grafana-provisioning
+        - name: dashboard
+          configMap:
+            name: {{ $name }}-grafana-dashboard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-grafana
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: {{ $name }}-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      nodePort: {{ .Values.monitoring.grafana.nodePort }}
+{{- end }}

@@ -1,0 +1,67 @@
+{{- /* AMD's unmodified metrics exporter and GPU Agent, reading the AMD SMI mock. */ -}}
+{{- if .Values.metricsExporter.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "fake-gpu.exporterName" . }}
+  labels:
+    {{- include "fake-gpu.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "fake-gpu.exporterSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "fake-gpu.exporterSelectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "fake-gpu.exporterName" . }}
+      {{- include "fake-gpu.nodeSelector" . | nindent 6 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      containers:
+        - name: metrics-exporter
+          image: {{ .Values.metricsExporter.image | quote }}
+          imagePullPolicy: {{ .Values.metricsExporter.imagePullPolicy }}
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MOCK_AMDSMI_STATE_DIR
+              value: /var/lib/fake-gpu/smi
+          ports:
+            - name: metrics
+              containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            # Metrics collection can exceed one second on emulated workers.
+            timeoutSeconds: {{ .Values.metricsExporter.readinessTimeoutSeconds | default 5 }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+            - name: pod-resources
+              mountPath: /var/lib/kubelet/pod-resources
+              readOnly: true
+            - name: state
+              mountPath: /var/lib/fake-gpu/smi
+              readOnly: true
+      volumes:
+        - name: sys
+          hostPath:
+            path: {{ .Values.mockRootDir }}/sys
+            type: Directory
+        - name: pod-resources
+          hostPath:
+            path: /var/lib/kubelet/pod-resources
+            type: Directory
+        - name: state
+          hostPath:
+            path: {{ .Values.mockRootDir }}/smi
+            type: Directory
+{{- end }}

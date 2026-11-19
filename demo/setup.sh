@@ -27,7 +27,7 @@ if $TEARDOWN; then
 fi
 if ! $SKIP; then
  mkdir -p "$ROOT/tmp/demo"
- helm template kind "$ROOT/deployments/kind-node/config-chart" -f "$CONFIG" --show-only templates/kind.yaml > "$ROOT/tmp/demo/kind-config.yaml"
+ helm template kind "$ROOT/deploy/kind-node/config-chart" -f "$CONFIG" --show-only templates/kind.yaml > "$ROOT/tmp/demo/kind-config.yaml"
  # Refuse to destroy an existing cluster. Use --skip-cluster to upgrade it.
  if grep -Fxq "$CLUSTER" <<< "$(kind get clusters 2>/dev/null)"; then
   echo "Cluster $CLUSTER exists; use --skip-cluster or --teardown." >&2; exit 1
@@ -38,12 +38,12 @@ if ! $SKIP; then
  if [ "${KIND_NODE_REGISTRY_AUTH:-}" = 1 ]; then "$ROOT/scripts/ci/node-registry-auth.sh" "$CLUSTER"; fi
 fi
 # Use an explicit context: no accidental install into another current cluster.
-# FAKE_GPU_CHART=deployments/helm/fake-gpu installs this checkout's chart.
+# FAKE_GPU_CHART=charts/fake-gpu installs this checkout's chart.
 helm upgrade --install fake-gpu "${FAKE_GPU_CHART:-oci://$IMAGE_REGISTRY/fake-gpu}" \
  --version "$CHART_VERSION" -n amd-mock --create-namespace \
  --kube-context "kind-$CLUSTER" --reset-values -f "$CONFIG" --wait --timeout 8m
 printf '\nDemo environment ready. Run: python3 demo/run.py list\n'
 printf 'Host ports and dashboard switches come from %s\n' "$CONFIG"
 printf 'Use KUBECONFIG/current context for kind-%s when running demos.\n' "$CLUSTER"
-helm template kind "$ROOT/deployments/kind-node/config-chart" -f "$CONFIG" --show-only templates/runtime.json | \
+helm template kind "$ROOT/deploy/kind-node/config-chart" -f "$CONFIG" --show-only templates/runtime.json | \
  python3 -c 'import sys,json; s=sys.stdin.read(); d=json.loads(s[s.index("{"):]); print("Mock dashboard: " + d["mockURL"] if d["mockDashboardEnabled"] else "Mock host dashboard disabled"); print("Grafana: " + d["grafanaURL"] + " (admin / configured password)" if d["grafanaEnabled"] else "Grafana disabled")'

@@ -37,7 +37,7 @@ jobs:
           kubectl_version: v1.37.0
           node_image: ghcr.io/mesutoezdil/amd-mock-kind-node:0.1.0
           cluster_name: amd-published-driver
-          config: deployments/kind-node/kind-config.yaml
+          config: deploy/kind-node/kind-config.yaml
           wait: 120s
       - name: Registry credentials for the node
         run: scripts/ci/node-registry-auth.sh amd-published-driver
@@ -54,21 +54,21 @@ jobs:
         env:
           DRIVER_IMAGE: ghcr.io/mesutoezdil/fake-gpu-driver:v0.1.0
         run: |
-          python3 -u tests/driver-mock/allocated.py
-          python3 -u tests/driver-mock/restart.py
-          python3 -u tests/driver-mock/allocated.py
-          PROVIDER_RESTART_MODE=graceful python3 -u tests/driver-mock/restart.py
-          python3 -u tests/driver-mock/allocated.py
+          python3 -u test/e2e/driver/allocated.py
+          python3 -u test/e2e/driver/restart.py
+          python3 -u test/e2e/driver/allocated.py
+          PROVIDER_RESTART_MODE=graceful python3 -u test/e2e/driver/restart.py
+          python3 -u test/e2e/driver/allocated.py
       - name: Graceful default-agent restart preserves mounted exporter state
         if: matrix.backend == 'nodes'
-        run: PROVIDER_RESTART_MODE=graceful python3 -u tests/driver-mock/restart.py
+        run: PROVIDER_RESTART_MODE=graceful python3 -u test/e2e/driver/restart.py
       - name: DRA Tiny LLM, virtual partition demo and automatic dashboards
         env:
           MODE: dra
         run: |
-          python3 -u tests/demo-e2e.py
-          python3 tests/dashboard-e2e.py
-          python3 tests/demo/grafana-e2e.py
+          python3 -u test/e2e/demo/workloads.py
+          python3 test/e2e/demo/dashboard.py
+          python3 test/e2e/demo/grafana.py
       - name: Diagnostics
         if: always()
         run: |

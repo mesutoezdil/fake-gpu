@@ -42,6 +42,6 @@ if $PUSH; then
     podman manifest push --all "$manifest" "docker://$manifest"
   fi
 fi
-helm lint deployments/helm/fake-gpu --namespace amd-mock
-helm package deployments/helm/fake-gpu -d "$BUILD"
+helm lint charts/fake-gpu --namespace amd-mock
+helm package charts/fake-gpu -d "$BUILD"
 if $PUSH; then helm push "$BUILD/fake-gpu-$CHART_VERSION.tgz" "oci://$IMAGE_REGISTRY"; fi
