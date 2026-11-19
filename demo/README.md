@@ -1,205 +1,171 @@
-# AMD GPU mock demo room
+# Presenter guide
 
-Open this folder when presenting. Demos use published images and CPU-only
-Kubernetes workers; no AMD source checkout, compiler or custom image build
-is needed. Most run entirely in Kind. The optional GPU/network demo adds
-a prepared ARM64 VM worker to the Kind control plane. The workload demos prove scheduling and device injection, not
-GPU inference or hardware isolation.
+Everything a presenter needs, from an empty machine to a cleaned-up cluster.
+The demos run on CPU-only Kubernetes workers from published images: no AMD
+source, compiler or image build. They show scheduling and device injection,
+not GPU inference or hardware isolation.
 
-## Start once
+## 1. Set up once
 
-Requires kind v0.33.0+, kubectl, Helm, Python 3 and running Docker/Podman.
+You need kind v0.33.0 or newer, kubectl, Helm, Python 3 and a running Docker
+or Podman.
 
 ```bash
 ./demo/setup.sh
 ```
 
-The default setup installs DRA, the mock node agent, the real AMD exporter,
-Prometheus and a provisioned Grafana dashboard. Open:
+This creates the kind cluster and installs the mock with DRA, the node agent,
+AMD's real exporter, Prometheus and Grafana with the dashboard provisioned:
 
-- Mock dashboard: http://localhost:8080
-- Grafana: http://localhost:3000 (`admin` / `amdmock`)
+| Endpoint | Address |
+| --- | --- |
+| Mock dashboard | http://localhost:8080 |
+| Grafana | http://localhost:3000 (`admin` / `amdmock`) |
 
-No port-forward processes are needed. These endpoints survive closing the
-terminal while the container runtime and cluster keep running.
+No port-forward is involved; both stay up as long as the cluster does.
 
-`demo/setup.sh` refuses to delete an existing cluster. Use `--skip-cluster`
-to upgrade an existing compatible kind cluster, or `--teardown` explicitly.
-`CONTAINER_RUNTIME=docker` or `CONTAINER_RUNTIME=podman` overrides runtime
-autodetection.
-An older cluster without the Grafana port mapping needs recreation to expose
-Grafana on a host port. The built-in Prometheus and Grafana use ephemeral
-storage; this is a local demonstration environment.
+- `setup.sh` never deletes a cluster. `--skip-cluster` upgrades an existing
+  compatible one, `--teardown` removes it.
+- `CONTAINER_RUNTIME=docker` or `=podman` overrides the runtime it detects.
+- A cluster created before the Grafana port mapping existed has to be
+  recreated to expose Grafana on the host.
+- Prometheus and Grafana keep their data in ephemeral storage: this is a
+  local demo environment.
 
-## One config for ports and enable switches
+## 2. Configure ports, dashboards and the allocator
 
-Edit [config.yaml](config.yaml) **before** creating the cluster:
-
-```yaml
-kind:
-  mockDashboardPort: 8080  # Host port; change freely before cluster creation.
-  grafanaPort: 3000
-
-dashboard:
-  enabled: true           # false removes mock dashboard host exposure.
-  nodePort: 30080
-
-monitoring:
-  enabled: true           # false disables bundled Prometheus and Grafana.
-  grafana:
-    enabled: true         # false disables Grafana only.
-    nodePort: 30300
-    adminPassword: amdmock
-```
-
-Keep the other fields in the supplied config, including the allocator and
-exporter settings. The setup script renders kind mappings and installs Helm
-with the same values file. This avoids mapping one port while serving another.
-The node agent's internal API still runs when its host dashboard is disabled.
-Fault/partition/profile demos require that API's host exposure. DRA and workload
-demos work without either dashboard.
+[config.yaml](config.yaml) is the single source for both the kind host ports
+and the Helm values, so a port is never mapped on one side and served on
+another. Edit a copy **before** the cluster exists; kind cannot change host
+port mappings afterwards (`--skip-cluster` still updates the Helm side).
 
 ```bash
-cp demo/config.yaml /tmp/my-demo.yaml
-# Edit /tmp/my-demo.yaml, then:
+cp demo/config.yaml /tmp/my-demo.yaml   # edit, then:
 ./demo/setup.sh --config /tmp/my-demo.yaml
 python3 demo/run.py telemetry --config /tmp/my-demo.yaml
 ```
 
-Use `CLUSTER_NAME=my-demo` for another cluster and `--context kind-my-demo`
-with the demo runner. Use a separate `KUBECONFIG` if you want to keep your
-current kubectl context untouched. `--skip-cluster` changes Helm workloads,
-but cannot change existing kind host-port mappings.
+| Setting | Effect |
+| --- | --- |
+| `kind.mockDashboardPort`, `kind.grafanaPort` | Host ports; they must differ |
+| `dashboard.enabled: false` | No host exposure of the mock dashboard and API |
+| `monitoring.enabled: false` | No bundled Prometheus and Grafana |
+| `monitoring.grafana.enabled: false` | Prometheus without Grafana |
+| `dra.enabled` / `devicePlugin.enabled` | The allocator; exactly one is true |
 
-For device-plugin demonstrations, edit both allocator flags:
+The node agent's API keeps running inside the cluster when its host dashboard
+is off, but the fault, partitioning and profile demos need the host
+exposure. The DRA and workload demos need neither dashboard.
 
-```yaml
-dra:
-  enabled: false
-devicePlugin:
-  enabled: true
-```
+For the device plugin, set `dra.enabled: false` and `devicePlugin.enabled:
+true`. Delete demo workloads before switching; never enable both. The
+workload demos detect the installed allocator on their own.
 
-Delete demo consumers before switching allocator. Workload demos automatically
-detect DRA versus device-plugin capacity. Do not enable both.
+For another cluster, set `CLUSTER_NAME=my-demo` for setup and pass `--context
+kind-my-demo` to the runner. A separate `KUBECONFIG` leaves your current
+kubectl context untouched.
 
-## Pick a demo
+## 3. Run demos
 
 ```bash
 python3 demo/run.py list
 ```
 
-| Folder | What to show | Command |
+| Demo | What to show | Command |
 | --- | --- | --- |
-| [llm](llm/README.md) | Tiny LLM scheduling and scripted output with one GPU | `python3 demo/run.py llm` |
-| [partition-allocation](partition-allocation/README.md) | Two containers, distinct 96-GiB partitions of one MI300X; requires DPX/NPS2 startup | `./demo/partition-allocation/run.sh` |
-| [partitioning](partitioning/README.md) | SPX/DPX/QPX/CPX virtual dashboard state | `python3 demo/run.py partitioning --mode CPX` |
-| [dra](dra/README.md) | ResourceSlice, ResourceClaim allocation and CDI devices | `python3 demo/run.py dra` |
-| [faults](faults/README.md) | Overheat, ECC, crash and recovery across real telemetry | `python3 demo/run.py faults --action overheat` |
-| [multi-gpu](multi-gpu/README.md) | Two GPUs in one pod, or multiple independent consumers | `python3 demo/run.py multi-gpu --count 2` |
-| [allocation](allocation/README.md) | Delete a consumer, observe release, allocate again | `python3 demo/run.py allocation` |
+| [llm](llm/README.md) | Tiny LLM scheduled with one GPU, scripted output | `python3 demo/run.py llm` |
+| [dra](dra/README.md) | ResourceSlice, claim allocation and CDI devices | `python3 demo/run.py dra` |
+| [multi-gpu](multi-gpu/README.md) | Two GPUs in one pod, or several independent consumers | `python3 demo/run.py multi-gpu --count 2` |
+| [allocation](allocation/README.md) | Delete a consumer, see the release, allocate again | `python3 demo/run.py allocation` |
 | [telemetry](telemetry/README.md) | Real AMD metrics and consumer labels in Grafana | `python3 demo/run.py telemetry` |
-| [profiles](profiles/README.md) | Model catalog and physical GPU inventory | `python3 demo/run.py profiles` |
+| [faults](faults/README.md) | Overheat, ECC, crash and recovery through real telemetry | `python3 demo/run.py faults --action overheat` |
+| [partitioning](partitioning/README.md) | SPX/DPX/QPX/CPX as virtual dashboard state | `python3 demo/run.py partitioning --mode CPX` |
+| [profiles](profiles/README.md) | Model catalog and the installed inventory | `python3 demo/run.py profiles` |
+| [partition-allocation](partition-allocation/README.md) | Two containers on distinct 96 GiB slices of one MI300X; needs a DPX/NPS2 cluster | `./demo/partition-allocation/run.sh` |
+| [spur](spur/README.md) | Unchanged Spur: submission, queueing, injection, completion, reuse; its own cluster | `demo/spur/setup.sh`, `demo/spur/run.py` |
 
-Run on a dedicated demonstration cluster. Workloads remain running so you can
-inspect them; they consume GPUs until cleanup. The main runner uses namespaces labelled `fake-gpu/demo=true`, such as
-`amd-demo-llm`. The standalone partition-allocation runner uses
-`amd-demo-partition-allocation`, which must be deleted explicitly.
+Use a cluster dedicated to the demo. Workloads keep running for inspection
+and hold their GPUs until cleanup. The runner puts each demo in a namespace
+labelled `fake-gpu/demo=true`, such as `amd-demo-llm`; `kubectl get pods -A`
+shows them. The profile, fault, telemetry and partitioning demos change or
+read state and create no pods.
 
-## How to read the evidence
+### Reading the output
 
-Every demo guide explains what to watch, how to read the logs, the layers
-exercised, and the limits of the evidence. Start with [EVIDENCE.md](EVIDENCE.md)
-for provenance, allocation/CDI checks and a controlled fault traced through
-AMD SMI, the real GPU Agent/exporter, Prometheus and Grafana. Workload runners
-print `EVIDENCE` and `PASS` only for the checks they actually perform.
+The runner prints `EVIDENCE` for what it inspected and `PASS` only for checks
+it actually made. Each demo's guide explains what to watch, the layers
+involved and the limits of the proof. [EVIDENCE.md](EVIDENCE.md) shows how to
+trace one allocation and one fault through every layer.
 
-Use `kubectl get pods -A` to see demo namespaces. Individual commands leave
-workloads running; the automated presenter suite removes them. Several demos
-only inspect or change state and create no pods.
+### A ten-minute presentation
 
-## Suggested ten-minute presentation
+1. Open both dashboards; point out the eight physical MI300X GPUs.
+2. Run `llm` and show the injected card and render nodes and the scripted log.
+3. Run `dra` and show the allocated device names in the claim.
+4. In Grafana, show the pod, namespace and container labels.
+5. Trigger Overheat or ECC: the dashboard changes at once, Grafana after the
+   next collection and scrape. Recover GPU 0.
+6. Clean up workloads, then show virtual CPX state and reset to SPX.
+7. On request, show `multi-gpu` or `allocation`.
 
-1. Open both dashboards; point out eight physical MI300X devices.
-2. Run the LLM demo and show the injected card/render nodes and scripted logs.
-3. Run the DRA demo; show the allocated device names in its claim.
-4. Open Grafana and show pod/namespace/container attribution.
-5. Trigger Overheat or ECC; watch the mock dashboard change immediately and
-   Grafana follow after collection/scraping. Recover GPU 0.
-6. Clean up workloads before demonstrating virtual CPX state; reset to SPX.
-7. Show multi-GPU allocation or allocation/release if the audience asks.
+Faults do not revoke claims, evict pods or restart workloads. CPX entries are
+not schedulable hardware slices. The [architecture
+diagrams](../docs/reference/architecture.md) help explain both boundaries.
 
-Faults do not automatically revoke claims, evict pods or restart workloads.
-CPX entries are not independently schedulable hardware slices. Use the
-[ASCII architecture diagrams](../docs/reference/architecture.md) to explain these boundaries.
-
-## Clean up
+## 4. Clean up
 
 ```bash
-python3 demo/run.py cleanup
-# Or remove the whole dedicated demo cluster:
-./demo/setup.sh --teardown
+python3 demo/run.py cleanup      # demo namespaces only
+./demo/setup.sh --teardown       # the whole demo cluster
 ```
 
-Cleanup removes only demo-labelled namespaces, resets SPX and recovers the
-mock GPUs when the host API is enabled. Supply the same `--config` and context
-used during setup. It does not remove the Helm release unless the whole
-cluster is deleted.
+`cleanup` deletes the demo-labelled namespaces, resets SPX and recovers every
+mock GPU when the host API is enabled. Pass the `--config` and context used
+at setup. The Helm release stays until the cluster is deleted.
 
-## Compatible published inputs
+## The same-GPU partition presentation
 
-| Component | Version |
-| --- | --- |
-| Chart (default dashboards) | 0.1.0 |
-| kind node / Kubernetes | 0.1.0 / v1.37.0 |
-| Mock node-agent image | v0.1.0 |
-| AMD exporter runtime | v1.5.2-fake.1 |
-
-These versions are independent: changing chart configuration does not require
-rebuilding an unchanged node image. The build pins are in
-[`scripts/release.env`](../scripts/release.env). The setup uses those pins.
-
-See [demo validation](../docs/contributing/testing.md#presenter-demos-and-default-dashboards)
-and [telemetry details](../docs/guides/telemetry.md) for tests and limitations.
-
-## Same-GPU allocation presentation
-
-The default presentation uses SPX whole GPUs. For the ninth demo,
-[partition allocation](partition-allocation/README.md), prepare a separate fresh
-cluster using the same setup script and published artifacts. Copy `config.yaml`
-and set `gpu.partition: DPX`; keep `gpu.profile: mi300x` and DRA enabled.
-Change both host ports if the normal demo cluster is still running.
+The standard presentation uses whole SPX GPUs. [Partition
+allocation](partition-allocation/README.md) needs its own fresh cluster,
+created by the same script from the same artifacts: copy `config.yaml`, set
+`gpu.partition: DPX`, keep `gpu.profile: mi300x` and DRA, and pick free host
+ports if the standard cluster is still running.
 
 ```bash
-cp demo/config.yaml /tmp/partition-demo.yaml
-# Edit gpu.partition to DPX and choose free dashboard/Grafana host ports.
+cp demo/config.yaml /tmp/partition-demo.yaml   # gpu.partition: DPX, free host ports
 KUBECONFIG=/tmp/partition-demo.kubeconfig CLUSTER_NAME=amd-partition-demo \
   ./demo/setup.sh --config /tmp/partition-demo.yaml
 KUBECONFIG=/tmp/partition-demo.kubeconfig ./demo/partition-allocation/run.sh
 ```
 
-Show the printed ResourceClaim/ResourceSlice evidence and both container logs.
-The two consumers get distinct render devices and 96 GiB advertised capacity
-from one physical GPU. The script also demonstrates exhaustion, CDI cleanup,
-reuse and driver restart, and leaves the final two-container pod Running.
-It is a standalone runner; `demo/run.py list` lists the eight SPX presentations.
+Show the printed ResourceClaim and ResourceSlice evidence and both container
+logs: two distinct render devices, each with 96 GiB advertised, from one
+physical GPU. The run also covers exhaustion, CDI cleanup, reuse and a driver
+restart, and leaves the final two-container pod running. It is a separate
+runner, so `demo/run.py list` does not show it.
 
-For this topology, remove the demo namespace explicitly:
+Its namespace, `amd-demo-partition-allocation`, is not labelled for
+`cleanup`, and a fixed DPX node refuses the SPX reset. Delete the namespace,
+then the cluster:
 
 ```bash
-kubectl --kubeconfig /tmp/partition-demo.kubeconfig \
-  delete namespace amd-demo-partition-allocation
+kubectl --kubeconfig /tmp/partition-demo.kubeconfig delete namespace amd-demo-partition-allocation
+KUBECONFIG=/tmp/partition-demo.kubeconfig kind delete cluster --name amd-partition-demo
 ```
 
-The generic cleanup/teardown script resets virtual SPX state and is intended
-for the normal SPX presentation. A fixed DPX cluster rejects that API request;
-after releasing its demo claims, remove the dedicated cluster directly with
-`KUBECONFIG=/tmp/partition-demo.kubeconfig kind delete cluster --name amd-partition-demo`.
-Do not change a live cluster's partition mode while claims exist.
+Never change a live cluster's partition mode while claims exist.
 
-## Spur batch scheduling
+## Published inputs
 
-[Spur demo](spur/README.md) creates a separate device-plugin cluster and uses
-unchanged upstream Spur to show submission, queueing, device injection, completion
-and GPU reuse. It includes setup, inspection and cleanup.
-No computation backend is needed.
+| Component | Version |
+| --- | --- |
+| Chart (dashboards on by default) | 0.1.0 |
+| kind node / Kubernetes | 0.1.0 / v1.37.0 |
+| Mock node agent image | v0.1.0 |
+| AMD exporter runtime | v1.5.2-fake.1 |
+
+The versions are independent: a chart configuration change does not need a
+new node image. `setup.sh` uses the pins in
+[`scripts/release.env`](../scripts/release.env). [Testing](../docs/contributing/testing.md#presenter-demos-and-default-dashboards)
+covers how the presentation is checked in CI, and the [telemetry
+guide](../docs/guides/telemetry.md) its limits.

@@ -44,7 +44,18 @@ jobs:
         run: |
           cp demo/config.yaml "$DEMO_CONFIG"
           if [ "$ALLOCATOR" = device-plugin ]; then
-            python3 -c 'import os,pathlib; p=pathlib.Path(os.environ["DEMO_CONFIG"]); p.write_text(p.read_text().replace("dra:\n  enabled: true", "dra:\n  enabled: false").replace("devicePlugin:\n  enabled: false", "devicePlugin:\n  enabled: true"))'
+            # Swap the allocator; fail loudly if demo/config.yaml changed shape.
+            python3 - <<'PY'
+          import os, pathlib
+          p = pathlib.Path(os.environ["DEMO_CONFIG"])
+          old = ("dra:\n  enabled: true", "devicePlugin:\n  enabled: false")
+          new = ("dra:\n  enabled: false", "devicePlugin:\n  enabled: true")
+          text = p.read_text()
+          assert all(o in text for o in old), "demo/config.yaml no longer has the allocator keys this step edits"
+          for o, n in zip(old, new):
+              text = text.replace(o, n)
+          p.write_text(text)
+          PY
           fi
           ./demo/setup.sh --config "$DEMO_CONFIG"
       - name: Grafana and all presenter commands

@@ -238,7 +238,7 @@ cluster.
 
 - [Dynamic Resource Allocation (DRA)](dra.md)
 - [Partition allocation demo](../../demo/partition-allocation/README.md)
-- [Same-GPU allocation presentation](../../demo/README.md#same-gpu-allocation-presentation)
+- [Same-GPU allocation presentation](../../demo/README.md#the-same-gpu-partition-presentation)
 - [Same-GPU partition allocation tests](../contributing/testing.md#same-gpu-partition-allocation)
 - [Architecture](../reference/architecture.md)
 - [AMD MI300X partition guide](https://instinct.docs.amd.com/projects/amdgpu-docs/en/latest/gpu-partitioning/mi300x/quick-start-guide.html)
