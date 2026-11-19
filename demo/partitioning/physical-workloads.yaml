@@ -58,7 +58,7 @@ spec:
             memory: 256Mi
           requests:
             amd.com/gpu: 1
-            cpu: "250m"
+            cpu: "100m"
             memory: 128Mi
 
 ---
@@ -119,5 +119,5 @@ spec:
             memory: 256Mi
           requests:
             amd.com/gpu: 1
-            cpu: "250m"
+            cpu: "100m"
             memory: 128Mi
