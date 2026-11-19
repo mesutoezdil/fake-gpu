@@ -81,9 +81,9 @@ func TestReconcileRejectsNonContiguousInventory(t *testing.T) {
 	}
 }
 
-func TestWriteMajorIsAtomic(t *testing.T) {
+func TestMarkerIsWrittenAtomically(t *testing.T) {
 	p := testProvider(t)
-	if err := p.writeMajor(); err != nil {
+	if err := p.writeMarker(); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(p.root, "device-major"))
@@ -117,7 +117,7 @@ func TestIsMountpoint(t *testing.T) {
 func TestCloseStopsHelpersAndForgetsMajor(t *testing.T) {
 	p := testProvider(t)
 	e := fakeEndpoint(t, p, 255, "kfd")
-	if err := p.writeMajor(); err != nil {
+	if err := p.writeMarker(); err != nil {
 		t.Fatal(err)
 	}
 	p.Close()
@@ -134,7 +134,7 @@ func TestCloseStopsHelpersAndForgetsMajor(t *testing.T) {
 	}
 }
 
-func TestNodesCreatesBothCopiesIdempotently(t *testing.T) {
+func TestPublishCreatesBothCopiesIdempotently(t *testing.T) {
 	requireRoot(t)
 	p := testProvider(t)
 	e := fakeEndpoint(t, p, 128, "dri/renderD128")
@@ -147,7 +147,7 @@ func TestNodesCreatesBothCopiesIdempotently(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		if err := p.nodes(e); err != nil {
+		if err := p.publish(e); err != nil {
 			t.Fatalf("pass %d: %v", i, err)
 		}
 		for _, base := range []string{filepath.Join(p.root, "dev"), p.hostDev} {
@@ -158,7 +158,7 @@ func TestNodesCreatesBothCopiesIdempotently(t *testing.T) {
 	}
 }
 
-func TestNodesRefusesUnrelatedDevice(t *testing.T) {
+func TestPublishRefusesUnrelatedDevice(t *testing.T) {
 	requireRoot(t)
 	p := testProvider(t)
 	e := fakeEndpoint(t, p, 128, "dri/renderD128")
@@ -170,7 +170,7 @@ func TestNodesRefusesUnrelatedDevice(t *testing.T) {
 	if err := unix.Mknod(path, unix.S_IFCHR|0o600, int(unix.Mkdev(1, 3))); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.nodes(e); err == nil || !strings.Contains(err.Error(), "refusing") {
+	if err := p.publish(e); err == nil || !strings.Contains(err.Error(), "refusing") {
 		t.Fatalf("nodes error = %v, want a refusal", err)
 	}
 	if major, minor := charDevice(t, path); major != 1 || minor != 3 {
@@ -184,7 +184,7 @@ func TestRemoveDeviceKeepsStagedCopy(t *testing.T) {
 	card := fakeEndpoint(t, p, 0, "dri/card0")
 	render := fakeEndpoint(t, p, 128, "dri/renderD128")
 	for _, e := range []*endpoint{card, render} {
-		if err := p.nodes(e); err != nil {
+		if err := p.publish(e); err != nil {
 			t.Fatal(err)
 		}
 	}
