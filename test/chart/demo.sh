@@ -43,26 +43,20 @@ rejects 'duplicate host ports' kind_config --set kind.grafanaPort=8080
 rejects 'monitoring without exporter' chart --set metricsExporter.enabled=false
 pass 'invalid dashboard/monitoring combinations rejected'
 
-python3 - "$ROOT" <<'PY'
+"$ROOT/scripts/dashboard-configmap.sh" custom > "$WORK/dashboard.json"
+python3 - "$ROOT" "$WORK/dashboard.json" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-root = Path(sys.argv[1])
-bundle = (root / 'deploy/metrics-exporter/grafana-dashboard.yaml').read_text()
-marker = '  amd-real-exporter.json: |\n'
-assert marker in bundle, 'grafana-dashboard.yaml no longer embeds amd-real-exporter.json'
-embedded = bundle.split(marker, 1)[1]
-upstream = json.loads('\n'.join(line[4:] for line in embedded.splitlines()))
+root, configmap = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text())
 shipped = json.loads((root / 'charts/fake-gpu/files/amd-real-exporter.json').read_text())
-assert upstream == shipped, 'chart dashboard differs from deploy/metrics-exporter/grafana-dashboard.yaml'
-for source, copy in [('deploy/workloads/tiny-llm-dra.yaml', 'demo/llm/dra.yaml'),
-                     ('deploy/workloads/tiny-llm-device-plugin.yaml', 'demo/llm/device-plugin.yaml'),
-                     ('deploy/workloads/dra-claim.yaml', 'demo/dra/claim.yaml'),
-                     ('deploy/workloads/partition-replicas.yaml', 'demo/partitioning/physical-workloads.yaml')]:
-    expected = (root / source).read_text().replace('  namespace: default\n', '')
-    assert expected == (root / copy).read_text(), copy + ' drifted from ' + source
-print('PASS: demo manifests and bundled dashboard match tested source assets')
+assert configmap['metadata']['namespace'] == 'custom' and configmap['metadata']['labels'] == {'grafana_dashboard': '1'}
+assert json.loads(configmap['data']['amd-real-exporter.json']) == shipped, 'external dashboard differs from the chart'
+assert shipped['uid'] == 'amd-real-exporter' and shipped['refresh'] == '5s', 'tests and docs open the dashboard by uid'
+exprs = [t['expr'] for p in shipped['panels'] for t in p['targets']]
+assert exprs and all('amd_gpu_' in e for e in exprs), 'panels must query the AMD exporter'
+print('PASS: external dashboard ConfigMap carries the chart dashboard')
 PY
 
 chart --show-only templates/metrics-exporter/daemonset.yaml > "$WORK/probe-default"

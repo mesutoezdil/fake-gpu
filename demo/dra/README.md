@@ -13,7 +13,7 @@ kubectl get resourceslices
 kubectl -n amd-demo-dra exec dra-gpu-demo -- ls -l /dev/kfd /dev/dri
 ```
 
-[claim.yaml](claim.yaml) contains an unconstrained GPU template, a MI300X
+[dra-claim.yaml](../../deploy/workloads/dra-claim.yaml) contains an unconstrained GPU template, a MI300X
 product-selector template, and a pod using the unconstrained template.
 Show a device advertised in ResourceSlices, the claim's allocation result,
 and the single card/render pair injected into the pod by CDI. The selector

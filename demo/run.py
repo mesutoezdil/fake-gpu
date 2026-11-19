@@ -165,7 +165,7 @@ def main():
     if args.command == "llm":
         mode = allocator()
         namespace = ns("llm")
-        k("apply", "-n", namespace, "-f", str(ROOT / "demo/llm" / (mode + ".yaml")))
+        k("apply", "-n", namespace, "-f", str(ROOT / "deploy/workloads" / ("tiny-llm-" + mode + ".yaml")))
         deployment = "tiny-llm-dra-demo" if mode == "dra" else "tiny-llm-demo"
         k("rollout", "status", "deployment/" + deployment, "-n", namespace, "--timeout=180s")
         time.sleep(5)  # Let scripted model-loading messages appear.
@@ -179,7 +179,7 @@ def main():
         if allocator() != "dra":
             raise RuntimeError("This demo requires the DRA installation.")
         namespace = ns("dra")
-        k("apply", "-n", namespace, "-f", str(ROOT / "demo/dra/claim.yaml"))
+        k("apply", "-n", namespace, "-f", str(ROOT / "deploy/workloads/dra-claim.yaml"))
         k("wait", "pod/dra-gpu-demo", "-n", namespace, "--for=condition=Ready", "--timeout=180s")
         print(k("get", "resourceslices"))
         print(k("get", "resourceclaims", "-n", namespace, "-o", "yaml"))
