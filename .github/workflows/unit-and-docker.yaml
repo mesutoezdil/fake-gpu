@@ -22,6 +22,12 @@ jobs:
       - run: test -z "$(gofmt -l cmd pkg)"
       - run: go vet ./...
       - run: go test -race -count=1 ./...
+      - name: Device node tests that need root for mknod
+        run: |
+          go test -c -o /tmp/node-agent.test ./cmd/node-agent
+          go test -c -o /tmp/mockdriver.test ./pkg/mockdriver
+          sudo /tmp/node-agent.test -test.v -test.run 'TestCreateDeviceNodes|TestMakedev'
+          sudo /tmp/mockdriver.test -test.v
       - run: tests/docker/run.sh
       - run: tests/hipshim/run.sh
       - run: tests/hipshim/live.sh

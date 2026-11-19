@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
+# The CUSE device backend is opt-in: the default chart never asks for it.
 set -euo pipefail
-cd "$(dirname "$0")/../.."
-chart=deployments/helm/fake-gpu
-out=$(helm template fake-gpu "$chart" -n amd-mock)
-if [[ "$out" == *--device-backend=cuse* ]]; then echo 'default unexpectedly requires CUSE' >&2; exit 1; fi
-out=$(helm template fake-gpu "$chart" -n amd-mock --set driverMock.enabled=true)
-[[ "$out" == *--device-backend=cuse* ]]
-echo 'PASS: CUSE is opt-in; ordinary quick start unchanged'
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$ROOT/tests/lib/common.sh"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+chart() { helm template fake-gpu "$ROOT/deployments/helm/fake-gpu" -n amd-mock "$@"; }
+chart > "$WORK/default"
+lacks "$WORK/default" '--device-backend=cuse'
+chart --set driverMock.enabled=true > "$WORK/cuse"
+has "$WORK/cuse" '--device-backend=cuse'
+pass 'CUSE is opt-in; ordinary quick start unchanged'

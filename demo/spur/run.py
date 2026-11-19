@@ -14,7 +14,7 @@ NS = 'amd-demo-spur'
 def k(*args, payload=None):
     p = subprocess.run(['kubectl', '--request-timeout=20s', *args],
                        input=json.dumps(payload) if payload is not None else None,
-                       text=True, capture_output=True, timeout=240)
+                       text=True, capture_output=True, timeout=240, check=False)
     if p.returncode:
         raise RuntimeError(p.stderr or p.stdout)
     return p.stdout

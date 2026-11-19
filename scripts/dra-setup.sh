@@ -28,7 +28,7 @@ if [ "${1:-}" = --teardown ]; then
     exit 0
 fi
 [ "$#" -eq 0 ] || { echo "usage: $0 [--teardown]" >&2; exit 1; }
-if kind get clusters | grep -Fxq "$CLUSTER_NAME"; then
+if grep -Fxq "$CLUSTER_NAME" <<< "$(kind get clusters 2>/dev/null)"; then
     echo "Cluster $CLUSTER_NAME already exists; choose another CLUSTER_NAME" >&2
     exit 1
 fi

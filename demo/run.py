@@ -4,10 +4,10 @@ import argparse
 import base64
 import json
 import os
-from pathlib import Path
 import subprocess
 import time
 import urllib.request
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 COMMANDS = {
@@ -37,7 +37,7 @@ args = parser.parse_args()
 def k(*cmd, obj=None, check=True):
     result = subprocess.run(["kubectl", "--context", args.context, *cmd],
                             input=None if obj is None else json.dumps(obj), text=True,
-                            capture_output=True)
+                            capture_output=True, check=False)
     if check and result.returncode:
         raise RuntimeError(result.stderr.strip())
     return result.stdout
@@ -257,7 +257,7 @@ def main():
             if not frames:
                 raise RuntimeError("Metrics not collected yet; retry after the next scrape.")
             for frame in frames:
-                for field, values in zip(frame["schema"]["fields"], frame["data"]["values"]):
+                for field, values in zip(frame["schema"]["fields"], frame["data"]["values"], strict=False):
                     if field["type"] != "number" or not values:
                         continue
                     labels = field.get("labels", {})

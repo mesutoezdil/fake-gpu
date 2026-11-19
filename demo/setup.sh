@@ -29,7 +29,7 @@ if ! $SKIP; then
  mkdir -p "$ROOT/tmp/demo"
  helm template kind "$ROOT/deployments/kind-node/config-chart" -f "$CONFIG" --show-only templates/kind.yaml > "$ROOT/tmp/demo/kind-config.yaml"
  # Refuse to destroy an existing cluster. Use --skip-cluster to upgrade it.
- if kind get clusters | grep -Fxq "$CLUSTER"; then
+ if grep -Fxq "$CLUSTER" <<< "$(kind get clusters 2>/dev/null)"; then
   echo "Cluster $CLUSTER exists; use --skip-cluster or --teardown." >&2; exit 1
  fi
  kind create cluster --name "$CLUSTER" --image "$IMAGE_REGISTRY/amd-mock-kind-node:$RELEASE_VERSION" \

@@ -2,9 +2,10 @@
 """Install and verify the isolated CRC Tiny LLM demo using published images."""
 import argparse
 import json
-from pathlib import Path
 import subprocess
 import time
+from pathlib import Path
+
 import yaml
 
 HERE = Path(__file__).resolve().parent

@@ -31,19 +31,17 @@ for arch in amd64 arm64; do
  podman run --rm -v "$ROOT/pkg/hipshim:/src:ro" -v "$context/pkg/hipshim:/out" localhost/amd-mock-cross-compiler "$compiler" -shared -fPIC -O2 -Wl,-soname,libfakehip.so -o /out/libfakehip.so /src/fakehip.c -lpthread
  podman build --platform "linux/$arch" -f Dockerfile.prebuilt -t "$IMAGE_REGISTRY/fake-gpu:v$MOCK_IMAGE_VERSION-$arch" "$context"
 done
-for image in "fake-gpu:v$MOCK_IMAGE_VERSION"; do
- manifest="$IMAGE_REGISTRY/$image"
- podman manifest rm "$manifest" >/dev/null 2>&1 || true
- podman manifest create "$manifest"
- for arch in amd64 arm64; do podman manifest add "$manifest" "containers-storage:$manifest-$arch"; done
- if $PUSH; then
-   if [ -n "${REGISTRY_AUTHFILE:-}" ]; then
-     podman manifest push --authfile "$REGISTRY_AUTHFILE" --all "$manifest" "docker://$manifest"
-   else
-     podman manifest push --all "$manifest" "docker://$manifest"
-   fi
- fi
-done
+manifest="$IMAGE_REGISTRY/fake-gpu:v$MOCK_IMAGE_VERSION"
+podman manifest rm "$manifest" >/dev/null 2>&1 || true
+podman manifest create "$manifest"
+for arch in amd64 arm64; do podman manifest add "$manifest" "containers-storage:$manifest-$arch"; done
+if $PUSH; then
+  if [ -n "${REGISTRY_AUTHFILE:-}" ]; then
+    podman manifest push --authfile "$REGISTRY_AUTHFILE" --all "$manifest" "docker://$manifest"
+  else
+    podman manifest push --all "$manifest" "docker://$manifest"
+  fi
+fi
 helm lint deployments/helm/fake-gpu --namespace amd-mock
 helm package deployments/helm/fake-gpu -d "$BUILD"
 if $PUSH; then helm push "$BUILD/fake-gpu-$CHART_VERSION.tgz" "oci://$IMAGE_REGISTRY"; fi

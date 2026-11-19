@@ -1,0 +1,44 @@
+# Static checks and the render-only chart contracts. No cluster or image
+# build, so it runs on every PR in about a minute.
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: azure/setup-helm@v4
+      - name: Scripts with a shebang are executable
+        run: |
+          bad=$(git ls-files -s | awk '$1 == "100644" {print $4}' | while read -r f; do
+            if head -c2 "$f" | grep -q '^#!'; then echo "$f"; fi
+          done)
+          if [ -n "$bad" ]; then echo "not executable:"; echo "$bad"; exit 1; fi
+      - name: shellcheck
+        run: git ls-files '*.sh' | xargs shellcheck -x
+      - name: ruff
+        run: |
+          python -m pip install --quiet ruff==0.16.9
+          ruff check --output-format=github .
+      - name: Every Python file compiles
+        run: git ls-files '*.py' | xargs python -m py_compile
+      - name: Check helpers and deploy filters
+        run: python -m unittest discover -s tests/lib -v
+      - name: Chart contracts
+        run: |
+          tests/dra/chart-validation.sh
+          tests/demo/chart-validation.sh
+          tests/driver-mock/chart.sh

@@ -20,6 +20,7 @@
 # mockRootDir is not /var/lib/fake-gpu.
 #
 # This is a stop-gap until AMD's chart makes the path configurable.
+set -eu
 MOCK_SYS="${MOCK_SYS:-/var/lib/fake-gpu/sys}"
 
 exec awk -v mock_sys="$MOCK_SYS" '
