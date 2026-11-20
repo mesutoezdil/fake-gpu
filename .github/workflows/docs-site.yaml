@@ -1,16 +1,28 @@
+# Builds the documentation site on every change to its sources, and publishes
+# it to GitHub Pages from main once the repository is public.
 name: docs-site
+
 on:
   pull_request:
-    paths: ['docs/**', 'demo/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
+    paths: &sources
+      - README.md
+      - mkdocs.yml
+      - docs/**
+      - demo/**
+      - scripts/docs/**
+      - .github/workflows/docs-site.yaml
   push:
     branches: [main]
-    paths: ['docs/**', 'demo/**', 'README.md', 'mkdocs.yml', 'scripts/docs/**', '.github/workflows/docs-site.yaml']
+    paths: *sources
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,16 +30,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
           cache: pip
           cache-dependency-path: scripts/docs/requirements.txt
       - run: python -m pip install -r scripts/docs/requirements.txt
-      - run: python scripts/docs/build.py
+      - name: Build strictly
+        run: python scripts/docs/build.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: tmp/docs-site
+
   deploy:
-    # Pages is skipped while the repository is private.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest

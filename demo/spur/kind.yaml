@@ -1,11 +1,13 @@
+# The Spur demo's own one-node cluster. Spur's operator schedules onto nodes
+# with spur.amd.com/managed=true and reads the GPU type and memory labels.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
-- role: control-plane
-  kubeadmConfigPatches:
-  - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        - name: node-labels
-          value: "spur.amd.com/managed=true,spur.amd.com/gpu-type=mi300x,spur.amd.com/gpu-memory-mb=196608"
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            - name: node-labels
+              value: "spur.amd.com/managed=true,spur.amd.com/gpu-type=mi300x,spur.amd.com/gpu-memory-mb=196608"

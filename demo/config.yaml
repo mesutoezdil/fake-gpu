@@ -1,5 +1,17 @@
-# One configuration for kind port mappings AND Helm workloads.
-# Edit before creating the cluster; existing kind port mappings cannot change.
+# The demo's single configuration: demo/setup.sh renders the kind cluster's
+# host ports from it and installs the chart with it, so both always agree.
+# Host ports are fixed when the cluster is created; edit them before that.
+
+# Allocator: exactly one of the two. DRA is the default.
+dra:
+  enabled: true
+devicePlugin:
+  enabled: false
+
+gpu:
+  profile: mi300x
+
+# Host ports kind maps to the dashboard and Grafana node ports below.
 kind:
   mockDashboardPort: 8080
   grafanaPort: 3000
@@ -8,21 +20,12 @@ dashboard:
   enabled: true
   nodePort: 30080
 
+metricsExporter:
+  enabled: true
+
 monitoring:
   enabled: true
   grafana:
     enabled: true
     nodePort: 30300
     adminPassword: amdmock
-
-metricsExporter:
-  enabled: true
-
-gpu:
-  profile: mi300x
-
-# Choose ONE allocator; the default is DRA.
-dra:
-  enabled: true
-devicePlugin:
-  enabled: false
