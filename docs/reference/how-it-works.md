@@ -87,7 +87,11 @@ profile, tray and virtual partition changes are blocked in this startup mode.
 | Path | Responsibility |
 | --- | --- |
 | `cmd/node-agent` | Profile loading, renderer, simulator and API startup |
-| `pkg/gpu/kfd` | Sysfs/devices/CDI, runtime state, dashboard and atomic SMI bridge |
+| `pkg/profile` | Profile schema, loader and fixed DPX/NPS2 partitioning |
+| `pkg/fleet` | Runtime GPU state, fault actions, virtual partitions and the telemetry simulator |
+| `pkg/sysfs` | Rendered sysfs tree and device nodes, fault and telemetry write-back, kernel log |
+| `pkg/smistate` | Atomic state files shared with the AMD SMI mock and the `amd-smi` CLI |
+| `pkg/cdi`, `pkg/capture`, `pkg/console` | CDI spec, profile capture from real hardware, HTTP API and web console |
 | `pkg/mocksmi` | AMD SMI library built on AMD's own header, read by the collector and every other consumer |
 | `pkg/hipshim` | HIP device and memory calls on host memory |
 | `charts/fake-gpu` | Node agent, allocator selection and optional exporter |

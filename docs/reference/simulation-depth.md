@@ -5,7 +5,7 @@ the test that fails if the surface breaks.
 
 | Area | What is simulated | What is not | Checked by |
 |---|---|---|---|
-| KFD topology | Node properties, memory banks, PCIe and xGMI `io_links`, link flags that follow xGMI faults | KFD ioctls, queues, process state | `go test ./pkg/gpu/kfd`, `test/container/dra_discovery/run.sh` |
+| KFD topology | Node properties, memory banks, PCIe and xGMI `io_links`, link flags that follow xGMI faults | KFD ioctls, queues, process state | `go test ./pkg/sysfs`, `test/container/dra_discovery/run.sh` |
 | Device nodes | `/dev/kfd`, card and render character devices with the expected major and minor | Any working open, read or ioctl; the CUSE backend adds open and libdrm init only | `test/e2e/profile/scheduling.py`, `test/e2e/driver/` |
 | PCI and DRM sysfs | IDs, NUMA node, root complex, product name, xGMI hive, `mem_info_*`, link speed and width, `pp_dpm_sclk` and `pp_dpm_mclk`, hwmon temperatures, clocks, power and power caps with the driver's labels, refreshed every second, RAS counters, retired page list | Writable attributes (setting a power cap or clock level has no effect), fan, voltage, firmware and PCI resource files; about 45 of the 121 attributes a Radeon RX 9070 XT exposes are rendered | `TestLiveTelemetryReachesSysfs`, `contracts_test.go` |
 | Kubernetes allocation | AMD device plugin capacity and health, AMD DRA driver ResourceSlices, claims, CDI injection, fixed MI300X DPX slices | Runtime partition changes as schedulable devices, continuous health without rediscovery | `test/e2e/profile/scheduling.py`, `test/e2e/dra/*.py` |

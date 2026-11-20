@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/profile"
 	"golang.org/x/sys/unix"
 )
 
@@ -61,13 +61,13 @@ func charDevice(t *testing.T, path string) (uint32, uint32) {
 }
 
 func TestReconcileRejectsNonContiguousInventory(t *testing.T) {
-	for _, dev := range []kfd.DeviceConfig{
-		{Index: 0, DRMRenderMinor: 130},
-		{Index: -1, DRMRenderMinor: 127},
-		{Index: 64, DRMRenderMinor: 192},
+	for _, dev := range []profile.Device{
+		{Index: 0, RenderMinor: 130},
+		{Index: -1, RenderMinor: 127},
+		{Index: 64, RenderMinor: 192},
 	} {
 		p := testProvider(t)
-		err := p.Reconcile(&kfd.Profile{Devices: []kfd.DeviceConfig{dev}})
+		err := p.Reconcile(&profile.Profile{Devices: []profile.Device{dev}})
 		if err == nil || !strings.Contains(err.Error(), "contiguous") {
 			t.Errorf("%+v: Reconcile error = %v, want contiguous-index error", dev, err)
 		}

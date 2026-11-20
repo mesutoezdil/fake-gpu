@@ -115,7 +115,7 @@ The snapshot's first line fields are temperature C, power W, power cap W,
 activity %, used memory MiB, total memory MiB, ECC count, graphics MHz and
 memory MHz. The next lines contain model, canonical SMI UUID and PCI BDF.
 The snapshot is the input read by the mock AMD SMI library, not a fabricated
-Prometheus response. See [snapshot writer](../pkg/gpu/kfd/smi.go) and
+Prometheus response. See [snapshot writer](../pkg/smistate/smistate.go) and
 [AMD SMI implementation](../pkg/mocksmi/) for that boundary.
 
 At the export endpoint find `amd_gpu_ecc_uncorrect_total` with `gpu_id="0"`.

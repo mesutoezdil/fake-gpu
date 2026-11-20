@@ -13,7 +13,8 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
-	"github.com/mesutoezdil/fake-gpu/pkg/gpu/kfd"
+	"github.com/mesutoezdil/fake-gpu/pkg/fleet"
+	"github.com/mesutoezdil/fake-gpu/pkg/smistate"
 )
 
 const usage = "usage: amd-smi {list|static|metric|monitor|bad-pages|version} [--json] [--gpu N]"
@@ -44,7 +45,7 @@ func run(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(out, "AMDSMI Tool: fake-gpu mock | AMDSMI Library version: mock")
 		return 0
 	}
-	gpus, err := kfd.ReadSMIState(dir)
+	gpus, err := smistate.Read(dir)
 	if err != nil {
 		fmt.Fprintf(errOut, "amd-smi: no mock GPU state in %s: %v\n", dir, err)
 		return 1
@@ -135,51 +136,51 @@ func upper(s string) string {
 	return string(b)
 }
 
-var views = map[string]func(kfd.GPUState) section{
-	"list": func(g kfd.GPUState) section {
-		return section{{"bdf", g.PCIBDF}, {"uuid", g.UUID}, {"node_id", g.Index + 1}}
+var views = map[string]func(fleet.GPU) section{
+	"list": func(g fleet.GPU) section {
+		return section{{"bdf", g.BDF}, {"uuid", g.UUID}, {"node_id", g.Index + 1}}
 	},
-	"static": func(g kfd.GPUState) section {
+	"static": func(g fleet.GPU) section {
 		return section{
 			{"asic", section{{"market_name", g.Name}}},
-			{"bus", section{{"bdf", g.PCIBDF}}},
+			{"bus", section{{"bdf", g.BDF}}},
 			{"limit", section{{"max_power", quantity{g.PowerCapW, "W"}}}},
-			{"vram", section{{"size", quantity{g.MemoryTotalMB, "MB"}}}},
+			{"vram", section{{"size", quantity{g.MemTotalMB, "MB"}}}},
 		}
 	},
 	"metric":  metric,
 	"monitor": metric,
-	"bad-pages": func(g kfd.GPUState) section {
+	"bad-pages": func(g fleet.GPU) section {
 		return section{{"retired", g.RetiredPages}}
 	},
 }
 
-func metric(g kfd.GPUState) section {
+func metric(g fleet.GPU) section {
 	throttle := "UNTHROTTLED"
 	if g.Throttled {
 		throttle = "THROTTLED"
 	}
 	return section{
 		{"status", g.Status},
-		{"usage", section{{"gfx_activity", quantity{g.UtilizationPct, "%"}}}},
+		{"usage", section{{"gfx_activity", quantity{g.Util, "%"}}}},
 		{"power", section{{"socket_power", quantity{g.PowerW, "W"}}, {"throttle_status", throttle}}},
-		{"clock", section{{"gfx_0", section{{"clk", quantity{g.ClockGFXMHz, "MHz"}}}}, {"mem_0", section{{"clk", quantity{g.ClockMemMHz, "MHz"}}}}}},
-		{"temperature", section{{"edge", quantity{g.TemperatureC, "°C"}}}},
+		{"clock", section{{"gfx_0", section{{"clk", quantity{g.GFXClockMHz, "MHz"}}}}, {"mem_0", section{{"clk", quantity{g.MemClockMHz, "MHz"}}}}}},
+		{"temperature", section{{"edge", quantity{g.TempC, "°C"}}}},
 		{"ecc", section{{"total_uncorrectable_count", g.ECCErrors}}},
 		{"mem_usage", section{
-			{"total_vram", quantity{g.MemoryTotalMB, "MB"}},
-			{"used_vram", quantity{g.MemoryUsedMB, "MB"}},
-			{"free_vram", quantity{g.MemoryTotalMB - g.MemoryUsedMB, "MB"}},
+			{"total_vram", quantity{g.MemTotalMB, "MB"}},
+			{"used_vram", quantity{g.MemUsedMB, "MB"}},
+			{"free_vram", quantity{g.MemTotalMB - g.MemUsedMB, "MB"}},
 		}},
 	}
 }
 
-func monitor(out io.Writer, gpus []kfd.GPUState) {
+func monitor(out io.Writer, gpus []fleet.GPU) {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', tabwriter.AlignRight)
 	fmt.Fprintln(w, "GPU\tPOWER\tGPU_TEMP\tGFX_UTIL\tGFX_CLOCK\tMEM_CLOCK\tVRAM_USED\tVRAM_TOTAL\tSTATUS\t")
 	for _, g := range gpus {
 		fmt.Fprintf(w, "%d\t%d W\t%d °C\t%d %%\t%d MHz\t%d MHz\t%d MB\t%d MB\t%s\t\n",
-			g.Index, g.PowerW, g.TemperatureC, g.UtilizationPct, g.ClockGFXMHz, g.ClockMemMHz, g.MemoryUsedMB, g.MemoryTotalMB, g.Status)
+			g.Index, g.PowerW, g.TempC, g.Util, g.GFXClockMHz, g.MemClockMHz, g.MemUsedMB, g.MemTotalMB, g.Status)
 	}
 	w.Flush()
 }
