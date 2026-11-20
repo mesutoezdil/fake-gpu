@@ -82,7 +82,7 @@ jobs:
             --set dra.enabled="$dra" --set devicePlugin.enabled="$plugin" \
             --set metricsExporter.enabled=true --set metricsExporter.image=local/amd-device-metrics-exporter:test \
             --set metricsExporter.serviceMonitor.enabled=true --wait --timeout 5m
-          kubectl apply -f deploy/metrics-exporter/grafana-dashboard.yaml
+          scripts/dashboard-configmap.sh monitoring | kubectl apply -f -
       - name: Telemetry, dashboard actions, workload labels and restart recovery
         env:
           ALLOCATOR: ${{ matrix.allocator }}

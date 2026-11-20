@@ -1,5 +1,5 @@
 apiVersion: v2
 name: amd-mock-kind-config
-description: Render kind ports from the same values used to install the demo
-version: 0.1.0
+description: kind cluster config whose host ports follow the fake-gpu chart values
 type: application
+version: 0.1.0

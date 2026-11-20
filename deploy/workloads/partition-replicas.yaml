@@ -7,7 +7,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: llm-inference-a
-  namespace: default
   labels:
     app: partition-demo
     model: summarizer
@@ -67,7 +66,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: llm-inference-b
-  namespace: default
   labels:
     app: partition-demo
     model: chatbot

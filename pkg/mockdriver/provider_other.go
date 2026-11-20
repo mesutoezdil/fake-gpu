@@ -1,19 +1,23 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
 //go:build !linux
 
 package mockdriver
 
 import (
-	"fmt"
+	"errors"
+
 	"github.com/mesutoezdil/fake-gpu/pkg/profile"
 )
 
+var errLinux = errors.New("CUSE requires Linux")
+
+// Provider is unavailable outside Linux; New always fails.
 type Provider struct{ Errors chan error }
 
-func New(root, hostDev, helper string) (*Provider, error) {
-	return nil, fmt.Errorf("CUSE requires Linux")
-}
-func (p *Provider) Reconcile(*profile.Profile) error { return fmt.Errorf("CUSE requires Linux") }
-func (p *Provider) RestoreDevice(index int) error    { return fmt.Errorf("CUSE requires Linux") }
-func (p *Provider) Close()                           {}
+func New(root, hostDev, helper string) (*Provider, error) { return nil, errLinux }
 
-func (p *Provider) RemoveDevice(index int) error { return fmt.Errorf("CUSE requires Linux") }
+func (*Provider) Reconcile(*profile.Profile) error { return errLinux }
+func (*Provider) RestoreDevice(int) error          { return errLinux }
+func (*Provider) RemoveDevice(int) error           { return errLinux }
+func (*Provider) Close()                           {}
